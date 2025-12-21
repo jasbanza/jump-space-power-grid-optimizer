@@ -656,9 +656,15 @@ function renderPriorityList() {
         div.addEventListener('drop', handleDrop);
         div.addEventListener('dragleave', handleDragLeave);
         
-        // Hover events for highlighting
-        div.addEventListener('mouseenter', () => highlightGridCells(item.id));
-        div.addEventListener('mouseleave', () => unhighlightGridCells(item.id));
+        // Hover events for highlighting (both grid and list item)
+        div.addEventListener('mouseenter', () => {
+            highlightGridCells(item.id);
+            highlightPriorityItem(item.id);
+        });
+        div.addEventListener('mouseleave', () => {
+            unhighlightGridCells(item.id);
+            unhighlightPriorityItem(item.id);
+        });
         
         container.appendChild(div);
     }
