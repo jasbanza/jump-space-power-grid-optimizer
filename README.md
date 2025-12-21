@@ -17,12 +17,12 @@ A web-based tool to optimize component placement on your ship's power grid in Ju
 
 ### Build Order & Priority System
 - **Priority List**: Drag-and-drop to reorder component placement priority
-- **Mandatory Components**: Check "Must" to mark components as required
-- **Protected Placement**: Check "Prot" to constrain component to protected (blue) cells only
+- **Mandatory Components**: Check 🔒 to mark components as required (must be placed)
+- **Shield Priority**: Check 🛡️ to prioritize protected (blue) cells for that component
 - **Visual Feedback**: 
   - Red highlight for components that couldn't be placed
   - Yellow highlight on hover (bidirectional between grid and list)
-  - Hover any placed shape on the grid to highlight it and its list entry
+  - Blue border on components with shield priority enabled
 
 ### Component Library
 - **Collapsible Categories**: Organized by type (Sensors, Engines, Weapons, etc.)
@@ -64,11 +64,15 @@ flowchart TD
     GREEDY1 --> DONE
     
     MANDATORY --> MAND_OK{All mandatory<br/>placed?}
-    MAND_OK -->|Yes| OPTIONAL[backtrackAll<br/>on optional pieces]
+    MAND_OK -->|Yes| OPT_PHASE1[Try backtrackMandatory<br/>on optional pieces]
     MAND_OK -->|No| GREEDY2[Greedy fallback<br/>for mandatory]
-    GREEDY2 --> OPTIONAL
+    GREEDY2 --> OPT_PHASE1
     
-    OPTIONAL --> OPT_OK{Found solution?}
+    OPT_PHASE1 --> OPT_ALL{All optional<br/>placed?}
+    OPT_ALL -->|Yes| DONE
+    OPT_ALL -->|No| OPT_PHASE2[backtrackAll<br/>allows skipping]
+    
+    OPT_PHASE2 --> OPT_OK{Found solution?}
     OPT_OK -->|Yes| DONE
     OPT_OK -->|No| GREEDY3[Greedy fallback<br/>for optional]
     GREEDY3 --> DONE
@@ -96,18 +100,21 @@ The solver uses **backtracking** to find valid configurations:
 #### 2. Placement Priority
 
 For each piece, valid placements are sorted by:
-1. **Protected cell coverage** (highest first) - prefers blue cells
-2. Components with 🛡️ checked **only** place on protected (blue) cells
+1. **Protected cell coverage** (highest first) - ALL components prefer blue cells
+2. Components with 🛡️ checked get a visual indicator showing they have shield priority
 
-#### 3. Two-Phase Approach (No Mandatory Pieces)
+#### 3. Two-Phase Approach
 
-When no pieces are marked mandatory and total ≤8:
+The solver always tries to place ALL pieces before allowing any to be skipped:
 
-1. **Phase 1**: Try to place ALL pieces using `backtrackMandatory()` (no skipping)
-   - If successful → done! All pieces placed.
-   
-2. **Phase 2**: If Phase 1 fails, use `backtrackAll()` (allows skipping)
-   - Returns best solution even if some pieces can't fit.
+**When NO mandatory pieces (and ≤8 total):**
+1. Try `backtrackMandatory()` on ALL pieces (no skipping)
+2. If fails → `backtrackAll()` (allows skipping)
+
+**When SOME mandatory pieces:**
+1. Place mandatory pieces with `backtrackMandatory()` 
+2. Try `backtrackMandatory()` on optional pieces (no skipping)
+3. If fails → `backtrackAll()` for optional (allows skipping)
 
 This ensures the solver **always tries to place everything first** before giving up on any piece.
 
@@ -138,8 +145,8 @@ After solving:
 
 3. **Organize priority**
    - Drag components to reorder placement priority
-   - Check "Must" for mandatory components
-   - Check "Prot" to force placement on protected (blue) cells only
+   - Check 🔒 for mandatory components (must be placed)
+   - Check 🛡️ to mark components for shield priority (prefers protected cells)
 
 4. **Solve**
    - Click Solve - the optimizer places components in priority order
