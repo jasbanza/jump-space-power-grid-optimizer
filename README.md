@@ -18,10 +18,11 @@ A web-based tool to optimize component placement on your ship's power grid in Ju
 ### Build Order & Priority System
 - **Priority List**: Drag-and-drop to reorder component placement priority
 - **Mandatory Components**: Check "Must" to mark components as required
+- **Protected Placement**: Check "Prot" to constrain component to protected (blue) cells only
 - **Visual Feedback**: 
   - Red highlight for components that couldn't be placed
-  - Green highlight for placed components
-  - Hover sync between grid and priority list
+  - Yellow highlight on hover (bidirectional between grid and list)
+  - Hover any placed shape on the grid to highlight it and its list entry
 
 ### Component Library
 - **Collapsible Categories**: Organized by type (Sensors, Engines, Weapons, etc.)
@@ -32,6 +33,7 @@ A web-based tool to optimize component placement on your ship's power grid in Ju
 - **Priority-Based Placement**: Respects your build order
 - **Mandatory First**: Uses backtracking to fit all mandatory components
 - **Protected Cell Priority**: Prefers placing on protected (blue) cells
+- **Protected-Only Mode**: Components marked "Prot" only place on blue cells
 - **Semi-Transparent Overlays**: See power cells beneath placed components
 
 ## Usage
@@ -47,10 +49,11 @@ A web-based tool to optimize component placement on your ship's power grid in Ju
 3. **Organize priority**
    - Drag components to reorder placement priority
    - Check "Must" for mandatory components
+   - Check "Prot" to force placement on protected (blue) cells only
 
 4. **Solve**
    - Click Solve - the optimizer places components in priority order
-   - Hover over placed components to highlight in the list (and vice versa)
+   - Hover over placed shapes on the grid OR list items for yellow highlighting
 
 ---
 

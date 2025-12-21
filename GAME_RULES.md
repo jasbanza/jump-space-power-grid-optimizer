@@ -79,10 +79,16 @@ When you add components to your build, they appear in a **priority list**:
 - Drag and drop to reorder priorities
 
 ### Mandatory Components
-Mark components as **mandatory** (checkbox) to indicate "must have":
+Mark components as **mandatory** ("Must" checkbox) to indicate "must have":
 - The solver uses backtracking to ensure all mandatory components fit
 - Non-mandatory components are placed greedily after mandatory ones
 - If mandatory components can't all fit, they're highlighted in red
+
+### Protected-Only Components
+Mark components as **protected-only** ("Prot" checkbox) to constrain placement:
+- The component will ONLY be placed on protected (blue) cells
+- Useful for critical components that must be in protected power slots
+- If no valid placement exists on protected cells, the component won't be placed
 
 ### Individual Instances
 Each component instance is tracked separately:
@@ -110,7 +116,8 @@ The solver respects your build order:
 ### Visual Feedback
 - **Placed components**: Semi-transparent overlay showing the power cells beneath
 - **Component labels**: Names displayed on the grid
-- **Hover sync**: Hovering a grid component highlights its list entry (and vice versa)
+- **Bidirectional hover**: Hover a placed shape on the grid OR its list entry for yellow highlighting
+- **Shape outlines**: Only outer borders shown (internal adjacent blocks share edges)
 - **Not placed**: Items that couldn't fit are highlighted red in the list
 
 ## Contributing Data
