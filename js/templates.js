@@ -24,7 +24,7 @@ export const GRID_TEMPLATES = {
         ]
     },
     // Template from screenshot - starter ship configuration
-    screenshot1: {
+    splitBiox2: {
         id: 'splitBiox2',
         name: 'Split Reactor with Bio x2',
         grid: [
