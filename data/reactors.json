@@ -2,53 +2,139 @@
   "splitReactor": {
     "id": "splitReactor",
     "name": "Split Reactor",
-    "powerGeneration": 22,
-    "protectedPower": 8,
-    "unprotectedPower": 14,
-    "grid": [
-      [2, 2, 0, 0, 0, 0, 2, 2],
-      [1, 2, 1, 0, 0, 1, 2, 1],
-      [1, 1, 1, 0, 0, 1, 1, 1],
-      [1, 1, 1, 0, 0, 1, 1, 1]
-    ]
+    "category": "REACTORS",
+    "tiers": {
+      "1": {
+        "powerGeneration": 22,
+        "protectedPower": 0,
+        "unprotectedPower": 22,
+        "grid": [
+          [1, 1, 0, 0, 0, 0, 1, 1],
+          [1, 1, 1, 0, 0, 1, 1, 1],
+          [1, 1, 1, 0, 0, 1, 1, 1],
+          [1, 1, 1, 0, 0, 1, 1, 1]
+        ]
+      },
+      "2": {
+        "powerGeneration": 22,
+        "protectedPower": 4,
+        "unprotectedPower": 18,
+        "grid": [
+          [1, 1, 0, 0, 0, 0, 1, 1],
+          [1, 1, 1, 0, 0, 1, 1, 1],
+          [1, 1, 1, 0, 0, 1, 1, 1],
+          [2, 2, 1, 0, 0, 1, 2, 2]
+        ]
+      },
+      "3": {
+        "powerGeneration": 22,
+        "protectedPower": 8,
+        "unprotectedPower": 14,
+        "grid": [
+          [1, 1, 0, 0, 0, 0, 1, 1],
+          [1, 1, 1, 0, 0, 1, 1, 1],
+          [2, 2, 1, 0, 0, 1, 2, 2],
+          [2, 2, 1, 0, 0, 1, 2, 2]
+        ]
+      }
+    }
   },
   "solidStateReactor": {
     "id": "solidStateReactor",
     "name": "Solid State Reactor",
-    "powerGeneration": 16,
-    "protectedPower": 16,
-    "unprotectedPower": 0,
-    "grid": [
-      [0, 0, 2, 2, 2, 2, 0, 0],
-      [0, 0, 2, 2, 2, 2, 0, 0],
-      [0, 0, 2, 2, 2, 2, 0, 0],
-      [0, 0, 2, 2, 2, 2, 0, 0]
-    ]
+    "category": "REACTORS",
+    "tiers": {
+      "1": {
+        "powerGeneration": 16,
+        "protectedPower": 0,
+        "unprotectedPower": 16,
+        "grid": [
+          [0, 0, 1, 1, 1, 1, 0, 0],
+          [0, 0, 1, 1, 1, 1, 0, 0],
+          [0, 0, 1, 1, 1, 1, 0, 0],
+          [0, 0, 1, 1, 1, 1, 0, 0]
+        ]
+      },
+      "2": {
+        "powerGeneration": 16,
+        "protectedPower": 8,
+        "unprotectedPower": 8,
+        "grid": [
+          [0, 0, 2, 2, 2, 2, 0, 0],
+          [0, 0, 2, 2, 2, 2, 0, 0],
+          [0, 0, 1, 1, 1, 1, 0, 0],
+          [0, 0, 1, 1, 1, 1, 0, 0]
+        ]
+      },
+      "3": {
+        "powerGeneration": 16,
+        "protectedPower": 16,
+        "unprotectedPower": 0,
+        "grid": [
+          [0, 0, 2, 2, 2, 2, 0, 0],
+          [0, 0, 2, 2, 2, 2, 0, 0],
+          [0, 0, 2, 2, 2, 2, 0, 0],
+          [0, 0, 2, 2, 2, 2, 0, 0]
+        ]
+      }
+    }
   },
   "materiaScatterReactor": {
     "id": "materiaScatterReactor",
     "name": "Materia Scatter Reactor",
-    "powerGeneration": 24,
-    "protectedPower": 8,
-    "unprotectedPower": 16,
-    "grid": [
-      [1, 2, 1, 1, 1, 1, 2, 1],
-      [1, 1, 1, 1, 1, 1, 1, 1],
-      [2, 1, 1, 0, 0, 1, 1, 2],
-      [2, 1, 1, 0, 0, 1, 1, 2]
-    ]
+    "category": "REACTORS",
+      "tiers": {
+        "2": {
+          "powerGeneration": 24,
+          "protectedPower": 8,
+          "unprotectedPower": 16,
+          "grid": [
+            [1, 1, 1, 1, 1, 1, 1, 1],
+            [0, 1, 0, 1, 1, 0, 1, 0],
+            [1, 2, 2, 1, 1, 2, 2, 1],
+            [2, 0, 2, 0, 0, 2, 0, 2]
+          ]
+        },
+        "3": {
+          "powerGeneration": 24,
+          "protectedPower": 14,
+          "unprotectedPower": 10,
+          "grid": [
+            [1, 1, 1, 1, 1, 1, 1, 1],
+            [0, 2, 0, 1, 1, 0, 2, 0],
+            [2, 2, 2, 2, 2, 2, 2, 2],
+            [2, 0, 2, 0, 0, 2, 0, 2]
+          ]
+        }
+    }
   },
   "nullWaveReactor": {
     "id": "nullWaveReactor",
     "name": "Null Wave Reactor",
-    "powerGeneration": 20,
-    "protectedPower": 10,
-    "unprotectedPower": 10,
-    "grid": [
-      [2, 2, 1, 0, 0, 1, 2, 2],
-      [2, 1, 1, 0, 0, 1, 1, 2],
-      [1, 1, 1, 0, 0, 1, 1, 1],
-      [1, 1, 0, 0, 0, 0, 1, 1]
-    ]
+    "category": "REACTORS",
+    "tiers": {
+      "2": {
+        "powerGeneration": 20,
+        "protectedPower": 10,
+        "unprotectedPower": 10,
+        "grid": [
+          [2, 1, 0, 0, 0, 0, 1, 2],
+          [2, 1, 1, 0, 0, 1, 1, 2],
+          [0, 2, 2, 1, 1, 2, 2, 0],
+          [0, 0, 2, 1, 1, 2, 0, 0]
+        ]
+      },
+      "3": {
+        "powerGeneration": 20,
+        "protectedPower": 14,
+        "unprotectedPower": 6,
+        "grid": [
+          [2, 2, 0, 0, 0, 0, 2, 2],
+          [2, 2, 1, 0, 0, 1, 2, 2],
+          [0, 2, 2, 1, 1, 2, 2, 0],
+          [0, 0, 2, 1, 1, 2, 0, 0]
+        ]
+      }
+    }
   }
 }

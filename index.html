@@ -21,19 +21,31 @@
                 <div class="grid-with-selectors">
                     <div class="grid-selectors">
                         <div class="selector-row reactor-selector">
-                            <select id="reactor-select" title="Reactor (rows 1-4)">
-                                <option value="">-- Reactor --</option>
-                            </select>
+                            <div id="reactor-dropdown" class="custom-dropdown" data-type="reactor">
+                                <div class="dropdown-selected">
+                                    <span class="dropdown-text">-- Select Reactor --</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </div>
+                                <div class="dropdown-options"></div>
+                            </div>
                         </div>
                         <div class="selector-row aux1-selector">
-                            <select id="aux1-select" title="Aux Generator 1 (rows 5-6)">
-                                <option value="none">-- Aux 1 --</option>
-                            </select>
+                            <div id="aux1-dropdown" class="custom-dropdown" data-type="aux1">
+                                <div class="dropdown-selected">
+                                    <span class="dropdown-text">None</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </div>
+                                <div class="dropdown-options"></div>
+                            </div>
                         </div>
                         <div class="selector-row aux2-selector">
-                            <select id="aux2-select" title="Aux Generator 2 (rows 7-8)">
-                                <option value="none">-- Aux 2 --</option>
-                            </select>
+                            <div id="aux2-dropdown" class="custom-dropdown" data-type="aux2">
+                                <div class="dropdown-selected">
+                                    <span class="dropdown-text">None</span>
+                                    <span class="dropdown-arrow">▼</span>
+                                </div>
+                                <div class="dropdown-options"></div>
+                            </div>
                         </div>
                     </div>
                     <div id="grid-container"></div>
@@ -46,25 +58,33 @@
                 </div>
             </div>
 
-            <div class="components-section">
-                <h2>Components</h2>
-                <div class="component-filters">
-                    <input type="text" id="filter-name" class="filter-input" placeholder="Filter by name...">
-                    <input type="number" id="filter-blocks" class="filter-input" placeholder="Blocks" min="1" max="25" style="width: 70px; flex: none;">
+            <div class="priority-section">
+                <h2>Build Order</h2>
+                <p class="instructions">Drag to reorder priority. Check for mandatory.</p>
+                <div id="priority-list"></div>
+                <div class="solve-section">
+                    <button id="solve-btn" class="btn btn-primary">Solve</button>
+                    <div id="solve-status" class="solve-status"></div>
                 </div>
-                <div id="components-container"></div>
             </div>
 
-            <div class="solve-section">
-                <h2>Solver</h2>
-                <div class="solve-options">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="require-all-checkbox">
-                        <span>Require all selected components to fit</span>
-                    </label>
-                </div>
-                <button id="solve-btn" class="btn btn-primary">Solve</button>
-                <div id="solve-status" class="solve-status"></div>
+            <div class="components-section">
+                <h2>Components</h2>
+                <fieldset class="component-filters-wrapper">
+                    <legend>Filters</legend>
+                    <div class="component-filters">
+                        <input type="text" id="filter-name" class="filter-input" placeholder="Name...">
+                        <input type="number" id="filter-blocks" class="filter-input filter-blocks" placeholder="Blocks" min="1" max="25">
+                        <select id="filter-tier" class="filter-input filter-tier">
+                            <option value="">Any Tier</option>
+                            <option value="1">Mk 1</option>
+                            <option value="2">Mk 2</option>
+                            <option value="3">Mk 3</option>
+                            <option value="4">Mk 4</option>
+                        </select>
+                    </div>
+                </fieldset>
+                <div id="components-container"></div>
             </div>
         </main>
 

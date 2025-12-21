@@ -15,24 +15,31 @@ import {
 // Track component tier quantities: Map<"componentId_tier", quantity>
 const componentQuantities = new Map();
 
+// Priority list: Array of {id, componentId, tier, mandatory}
+let priorityList = [];
+let priorityIdCounter = 0;
+
 // Filter state
 let nameFilter = '';
 let blocksFilter = null;
+let tierFilter = '';
 
-// Expanded accordions
+// Expanded categories (only one at a time)
+let expandedCategory = null;
+
+// Expanded component accordions
 const expandedComponents = new Set();
 
-// Current grid configuration
+// Current grid configuration with tiers
 let currentReactor = '';
+let currentReactorTier = '1';
 let currentAux1 = 'none';
+let currentAux1Tier = '1';
 let currentAux2 = 'none';
+let currentAux2Tier = '1';
 
-// Component colors for visualization
-const COMPONENT_COLORS = [
-    'piece-color-0', 'piece-color-1', 'piece-color-2', 'piece-color-3',
-    'piece-color-4', 'piece-color-5', 'piece-color-6', 'piece-color-7',
-    'piece-color-8', 'piece-color-9'
-];
+// Track which priority items are placed in the solution
+let placedPriorityIds = new Set();
 
 /**
  * Initialize the UI
@@ -41,45 +48,146 @@ export function initUI() {
     renderGrid();
     renderComponents();
     renderGridConfig();
+    renderPriorityList();
     setupEventListeners();
 }
 
 /**
- * Render the grid configuration dropdowns (reactor + aux generators)
+ * Render the grid configuration with custom dropdowns
  */
 function renderGridConfig() {
-    const reactorSelect = document.getElementById('reactor-select');
-    const aux1Select = document.getElementById('aux1-select');
-    const aux2Select = document.getElementById('aux2-select');
-    
     const reactors = getReactorList();
     const auxGenerators = getAuxGeneratorList();
     
-    // Populate reactor dropdown
-    reactorSelect.innerHTML = '<option value="">-- Select Reactor --</option>';
-    reactors.forEach(reactor => {
-        const option = document.createElement('option');
-        option.value = reactor.id;
-        option.textContent = `${reactor.name} (${reactor.powerGeneration} power)`;
-        reactorSelect.appendChild(option);
-    });
+    // Render reactor dropdown
+    renderCustomDropdown('reactor-dropdown', reactors, currentReactor, currentReactorTier, 'reactor');
     
-    // Populate aux generator dropdowns
-    [aux1Select, aux2Select].forEach(select => {
-        select.innerHTML = '';
-        auxGenerators.forEach(aux => {
-            const option = document.createElement('option');
-            option.value = aux.id;
-            if (aux.id === 'none') {
-                option.textContent = 'None';
-            } else {
-                option.textContent = `${aux.name} (+${aux.powerGeneration} power)`;
-            }
-            select.appendChild(option);
-        });
-    });
+    // Render aux generator dropdowns
+    renderCustomDropdown('aux1-dropdown', auxGenerators, currentAux1, currentAux1Tier, 'aux');
+    renderCustomDropdown('aux2-dropdown', auxGenerators, currentAux2, currentAux2Tier, 'aux');
     
     updateGridStats();
+}
+
+/**
+ * Render a custom dropdown with grid previews
+ */
+function renderCustomDropdown(containerId, items, selectedId, selectedTier, type) {
+    const container = document.getElementById(containerId);
+    const optionsContainer = container.querySelector('.dropdown-options');
+    const textEl = container.querySelector('.dropdown-text');
+    
+    optionsContainer.innerHTML = '';
+    
+    // For aux generators, add a "None" option first if not already there
+    if (type === 'aux') {
+        const noneOption = items.find(i => i.id === 'none');
+        if (noneOption && selectedId === 'none') {
+            textEl.textContent = 'None';
+        }
+    }
+    
+    // Update selected text
+    const selectedItem = items.find(i => i.id === selectedId && i.tier === selectedTier);
+    if (selectedItem) {
+        textEl.textContent = selectedItem.displayName;
+    } else if (type === 'reactor') {
+        textEl.textContent = '-- Select Reactor --';
+    }
+    
+    // Create options
+    for (const item of items) {
+        const option = document.createElement('div');
+        option.className = 'dropdown-option';
+        if (item.id === selectedId && item.tier === selectedTier) {
+            option.classList.add('selected');
+        }
+        option.dataset.id = item.id;
+        option.dataset.tier = item.tier;
+        
+        // Grid preview
+        if (item.grid && item.id !== 'none') {
+            const preview = createGridPreview(item.grid);
+            option.appendChild(preview);
+        }
+        
+        // Info
+        const info = document.createElement('div');
+        info.className = 'dropdown-option-info';
+        
+        const name = document.createElement('div');
+        name.className = 'dropdown-option-name';
+        name.textContent = item.displayName;
+        
+        const stats = document.createElement('div');
+        stats.className = 'dropdown-option-stats';
+        if (item.id === 'none') {
+            stats.textContent = 'No power';
+        } else {
+            stats.textContent = `${item.powerGeneration} power (${item.protectedPower} protected)`;
+        }
+        
+        info.appendChild(name);
+        info.appendChild(stats);
+        option.appendChild(info);
+        
+        // Click handler
+        option.addEventListener('click', () => {
+            handleDropdownSelect(containerId, item.id, item.tier);
+        });
+        
+        optionsContainer.appendChild(option);
+    }
+}
+
+/**
+ * Create a grid preview element
+ */
+function createGridPreview(grid) {
+    const preview = document.createElement('div');
+    preview.className = 'dropdown-option-preview';
+    preview.style.gridTemplateColumns = `repeat(${grid[0].length}, 6px)`;
+    preview.style.gridTemplateRows = `repeat(${grid.length}, 6px)`;
+    
+    for (let row = 0; row < grid.length; row++) {
+        for (let col = 0; col < grid[row].length; col++) {
+            const cell = document.createElement('div');
+            cell.className = 'dropdown-option-preview-cell';
+            const value = grid[row][col];
+            if (value === 2) {
+                cell.classList.add('protected');
+            } else if (value === 1) {
+                cell.classList.add('powered');
+            } else {
+                cell.classList.add('empty');
+            }
+            preview.appendChild(cell);
+        }
+    }
+    
+    return preview;
+}
+
+/**
+ * Handle dropdown selection
+ */
+function handleDropdownSelect(containerId, id, tier) {
+    const container = document.getElementById(containerId);
+    container.classList.remove('open');
+    
+    if (containerId === 'reactor-dropdown') {
+        currentReactor = id;
+        currentReactorTier = tier;
+    } else if (containerId === 'aux1-dropdown') {
+        currentAux1 = id;
+        currentAux1Tier = tier;
+    } else if (containerId === 'aux2-dropdown') {
+        currentAux2 = id;
+        currentAux2Tier = tier;
+    }
+    
+    renderGridConfig();
+    applyGridConfig();
 }
 
 /**
@@ -93,7 +201,7 @@ function updateGridStats() {
         return;
     }
     
-    const stats = getGridStats(currentReactor, currentAux1, currentAux2);
+    const stats = getGridStats(currentReactor, currentReactorTier, currentAux1, currentAux1Tier, currentAux2, currentAux2Tier);
     statsEl.innerHTML = `
         <span class="stat">Total: <strong>${stats.total}</strong></span>
         <span class="stat protected">Protected: <strong>${stats.protected}</strong></span>
@@ -107,10 +215,12 @@ function updateGridStats() {
 function applyGridConfig() {
     if (!currentReactor) return;
     
-    const grid = combineGrid(currentReactor, currentAux1, currentAux2);
+    const grid = combineGrid(currentReactor, currentReactorTier, currentAux1, currentAux1Tier, currentAux2, currentAux2Tier);
     setGridFromTemplate(grid);
     clearSolution();
+    placedPriorityIds.clear();
     renderGrid();
+    renderPriorityList();
     updateGridStats();
 }
 
@@ -125,14 +235,29 @@ export function renderGrid() {
     
     // Build a map of placed components for quick lookup
     const placedCellsMap = new Map();
-    solution.forEach((placement, idx) => {
+    const componentBounds = new Map(); // Track bounding boxes for labels
+    
+    solution.forEach((placement) => {
+        const priorityId = placement.priorityId;
+        let minRow = Infinity, maxRow = -1, minCol = Infinity, maxCol = -1;
+        
         for (const cell of placement.cells) {
             const key = `${cell.row},${cell.col}`;
             placedCellsMap.set(key, {
-                colorClass: COMPONENT_COLORS[idx % COMPONENT_COLORS.length],
+                priorityId: priorityId,
                 componentName: placement.componentName || placement.pieceName
             });
+            
+            minRow = Math.min(minRow, cell.row);
+            maxRow = Math.max(maxRow, cell.row);
+            minCol = Math.min(minCol, cell.col);
+            maxCol = Math.max(maxCol, cell.col);
         }
+        
+        componentBounds.set(priorityId, {
+            minRow, maxRow, minCol, maxCol,
+            name: placement.componentName || placement.pieceName
+        });
     });
     
     container.innerHTML = '';
@@ -156,8 +281,11 @@ export function renderGrid() {
             if (placedCellsMap.has(key)) {
                 const componentInfo = placedCellsMap.get(key);
                 cell.classList.add('has-piece');
+                cell.dataset.priorityId = componentInfo.priorityId;
+                
                 const overlay = document.createElement('div');
-                overlay.className = `piece-overlay ${componentInfo.colorClass}`;
+                overlay.className = 'piece-overlay';
+                overlay.dataset.priorityId = componentInfo.priorityId;
                 overlay.title = componentInfo.componentName;
                 cell.appendChild(overlay);
             }
@@ -165,10 +293,311 @@ export function renderGrid() {
             container.appendChild(cell);
         }
     }
+    
+    // Add labels for each placed component (positioned at center of bounding box)
+    for (const [priorityId, bounds] of componentBounds) {
+        const label = document.createElement('div');
+        label.className = 'piece-label';
+        label.dataset.priorityId = priorityId;
+        
+        // Calculate position
+        const cellSize = 42; // grid cell size + gap
+        const centerRow = (bounds.minRow + bounds.maxRow) / 2;
+        const centerCol = (bounds.minCol + bounds.maxCol) / 2;
+        
+        label.style.top = `${centerRow * cellSize + 20}px`;
+        label.style.left = `${bounds.minCol * cellSize + 2}px`;
+        label.style.width = `${(bounds.maxCol - bounds.minCol + 1) * cellSize - 4}px`;
+        
+        // Abbreviate long names
+        const name = bounds.name;
+        label.textContent = name.length > 12 ? name.substring(0, 10) + '...' : name;
+        label.title = name;
+        
+        container.appendChild(label);
+    }
 }
 
 /**
- * Render the components accordion list
+ * Render the priority list
+ */
+function renderPriorityList() {
+    const container = document.getElementById('priority-list');
+    container.innerHTML = '';
+    
+    if (priorityList.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'priority-empty';
+        empty.textContent = 'Add components to build your ship configuration';
+        container.appendChild(empty);
+        return;
+    }
+    
+    const components = getComponents();
+    
+    for (const item of priorityList) {
+        const component = components[item.componentId];
+        if (!component || !component.tiers[item.tier]) continue;
+        
+        const tierData = component.tiers[item.tier];
+        const isPlaced = placedPriorityIds.has(item.id);
+        
+        const div = document.createElement('div');
+        div.className = 'priority-item';
+        div.dataset.priorityId = item.id;
+        div.draggable = true;
+        
+        if (isPlaced) {
+            div.classList.add('placed');
+        } else if (placedPriorityIds.size > 0) {
+            // Only mark as not-placed if solver has run
+            div.classList.add('not-placed');
+        }
+        
+        // Drag handle
+        const handle = document.createElement('span');
+        handle.className = 'priority-drag-handle';
+        handle.textContent = '≡';
+        
+        // Preview
+        const preview = createSmallShapePreview(tierData.shape);
+        preview.className = 'priority-preview';
+        
+        // Info
+        const info = document.createElement('div');
+        info.className = 'priority-info';
+        
+        const name = document.createElement('div');
+        name.className = 'priority-name';
+        name.textContent = component.name;
+        
+        const tier = document.createElement('div');
+        tier.className = 'priority-tier';
+        tier.textContent = `Mk ${item.tier}`;
+        
+        info.appendChild(name);
+        info.appendChild(tier);
+        
+        // Mandatory checkbox
+        const mandatory = document.createElement('label');
+        mandatory.className = 'priority-mandatory';
+        
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.checked = item.mandatory;
+        checkbox.addEventListener('change', (e) => {
+            item.mandatory = e.target.checked;
+        });
+        
+        mandatory.appendChild(checkbox);
+        mandatory.appendChild(document.createTextNode('Must'));
+        
+        // Remove button
+        const remove = document.createElement('button');
+        remove.className = 'priority-remove';
+        remove.textContent = '×';
+        remove.addEventListener('click', () => {
+            removePriorityItem(item.id);
+        });
+        
+        div.appendChild(handle);
+        div.appendChild(preview);
+        div.appendChild(info);
+        div.appendChild(mandatory);
+        div.appendChild(remove);
+        
+        // Drag events
+        div.addEventListener('dragstart', handleDragStart);
+        div.addEventListener('dragend', handleDragEnd);
+        div.addEventListener('dragover', handleDragOver);
+        div.addEventListener('drop', handleDrop);
+        div.addEventListener('dragleave', handleDragLeave);
+        
+        // Hover events for highlighting
+        div.addEventListener('mouseenter', () => highlightGridCells(item.id));
+        div.addEventListener('mouseleave', () => unhighlightGridCells(item.id));
+        
+        container.appendChild(div);
+    }
+}
+
+/**
+ * Create a small shape preview for priority list
+ */
+function createSmallShapePreview(shape) {
+    const preview = document.createElement('div');
+    preview.style.display = 'inline-grid';
+    preview.style.gap = '1px';
+    preview.style.backgroundColor = 'var(--border-color)';
+    preview.style.padding = '1px';
+    preview.style.borderRadius = '2px';
+    preview.style.gridTemplateColumns = `repeat(${shape[0].length}, 8px)`;
+    preview.style.gridTemplateRows = `repeat(${shape.length}, 8px)`;
+    
+    for (let row = 0; row < shape.length; row++) {
+        for (let col = 0; col < shape[row].length; col++) {
+            const cell = document.createElement('div');
+            cell.className = 'priority-preview-cell';
+            cell.classList.add(shape[row][col] ? 'filled' : 'empty');
+            preview.appendChild(cell);
+        }
+    }
+    
+    return preview;
+}
+
+// Drag and drop handlers
+let draggedItem = null;
+
+function handleDragStart(e) {
+    draggedItem = e.target;
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+function handleDragEnd(e) {
+    e.target.classList.remove('dragging');
+    document.querySelectorAll('.priority-item').forEach(item => {
+        item.classList.remove('drag-over');
+    });
+    draggedItem = null;
+}
+
+function handleDragOver(e) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    const target = e.target.closest('.priority-item');
+    if (target && target !== draggedItem) {
+        target.classList.add('drag-over');
+    }
+}
+
+function handleDragLeave(e) {
+    const target = e.target.closest('.priority-item');
+    if (target) {
+        target.classList.remove('drag-over');
+    }
+}
+
+function handleDrop(e) {
+    e.preventDefault();
+    const target = e.target.closest('.priority-item');
+    if (!target || target === draggedItem) return;
+    
+    target.classList.remove('drag-over');
+    
+    const draggedId = draggedItem.dataset.priorityId;
+    const targetId = target.dataset.priorityId;
+    
+    const draggedIndex = priorityList.findIndex(p => p.id === draggedId);
+    const targetIndex = priorityList.findIndex(p => p.id === targetId);
+    
+    if (draggedIndex !== -1 && targetIndex !== -1) {
+        const [removed] = priorityList.splice(draggedIndex, 1);
+        priorityList.splice(targetIndex, 0, removed);
+        renderPriorityList();
+    }
+}
+
+/**
+ * Remove an item from priority list
+ */
+function removePriorityItem(id) {
+    const item = priorityList.find(p => p.id === id);
+    if (!item) return;
+    
+    priorityList = priorityList.filter(p => p.id !== id);
+    
+    // Update quantities
+    const key = `${item.componentId}_${item.tier}`;
+    const currentQty = componentQuantities.get(key) || 0;
+    if (currentQty > 1) {
+        componentQuantities.set(key, currentQty - 1);
+    } else {
+        componentQuantities.delete(key);
+    }
+    
+    renderComponents();
+    renderPriorityList();
+}
+
+/**
+ * Sync priority list with component quantities
+ */
+function syncPriorityList(componentId, tier, newQty) {
+    const key = `${componentId}_${tier}`;
+    const currentItems = priorityList.filter(p => p.componentId === componentId && p.tier === tier);
+    const currentCount = currentItems.length;
+    
+    if (newQty > currentCount) {
+        // Add new items
+        for (let i = 0; i < newQty - currentCount; i++) {
+            priorityList.push({
+                id: `priority-${priorityIdCounter++}`,
+                componentId,
+                tier,
+                mandatory: false
+            });
+        }
+    } else if (newQty < currentCount) {
+        // Remove items from the end
+        const toRemove = currentCount - newQty;
+        let removed = 0;
+        for (let i = priorityList.length - 1; i >= 0 && removed < toRemove; i--) {
+            if (priorityList[i].componentId === componentId && priorityList[i].tier === tier) {
+                priorityList.splice(i, 1);
+                removed++;
+            }
+        }
+    }
+    
+    renderPriorityList();
+}
+
+/**
+ * Highlight grid cells for a priority item
+ */
+function highlightGridCells(priorityId) {
+    const overlays = document.querySelectorAll(`.piece-overlay[data-priority-id="${priorityId}"]`);
+    overlays.forEach(o => o.classList.add('highlighted'));
+    
+    const labels = document.querySelectorAll(`.piece-label[data-priority-id="${priorityId}"]`);
+    labels.forEach(l => l.style.fontWeight = 'bold');
+}
+
+/**
+ * Unhighlight grid cells
+ */
+function unhighlightGridCells(priorityId) {
+    const overlays = document.querySelectorAll(`.piece-overlay[data-priority-id="${priorityId}"]`);
+    overlays.forEach(o => o.classList.remove('highlighted'));
+    
+    const labels = document.querySelectorAll(`.piece-label[data-priority-id="${priorityId}"]`);
+    labels.forEach(l => l.style.fontWeight = '');
+}
+
+/**
+ * Highlight priority item from grid hover
+ */
+function highlightPriorityItem(priorityId) {
+    const item = document.querySelector(`.priority-item[data-priority-id="${priorityId}"]`);
+    if (item) {
+        item.classList.add('highlighted');
+    }
+}
+
+/**
+ * Unhighlight priority item
+ */
+function unhighlightPriorityItem(priorityId) {
+    const item = document.querySelector(`.priority-item[data-priority-id="${priorityId}"]`);
+    if (item) {
+        item.classList.remove('highlighted');
+    }
+}
+
+/**
+ * Render the components accordion list with collapsible categories
  */
 function renderComponents() {
     const container = document.getElementById('components-container');
@@ -188,27 +617,61 @@ function renderComponents() {
     
     // Render by category
     for (const [category, items] of Object.entries(categories)) {
+        // Filter items for this category
+        const filteredItems = items.filter(({ componentId, component }) => {
+            // Filter by name
+            if (nameFilter && !component.name.toLowerCase().includes(nameFilter.toLowerCase())) {
+                return false;
+            }
+            
+            // Check if any tier matches filters
+            const matchingTiers = getMatchingTiers(component.tiers, blocksFilter, tierFilter);
+            return matchingTiers.length > 0;
+        });
+        
+        if (filteredItems.length === 0) continue;
+        
+        const isExpanded = expandedCategory === category;
+        
         // Create category header
         const categoryHeader = document.createElement('div');
         categoryHeader.className = 'component-category';
-        categoryHeader.textContent = category;
+        if (isExpanded) categoryHeader.classList.add('expanded');
+        
+        const toggle = document.createElement('span');
+        toggle.className = 'component-category-toggle';
+        toggle.textContent = '▶';
+        
+        const categoryName = document.createElement('span');
+        categoryName.className = 'component-category-name';
+        categoryName.textContent = category;
+        
+        const count = document.createElement('span');
+        count.className = 'component-category-count';
+        count.textContent = filteredItems.length;
+        
+        categoryHeader.appendChild(toggle);
+        categoryHeader.appendChild(categoryName);
+        categoryHeader.appendChild(count);
+        
+        categoryHeader.addEventListener('click', () => {
+            if (expandedCategory === category) {
+                expandedCategory = null;
+            } else {
+                expandedCategory = category;
+            }
+            renderComponents();
+        });
+        
         container.appendChild(categoryHeader);
         
-        for (const { componentId, component } of items) {
-            // Filter by name
-            if (nameFilter && !component.name.toLowerCase().includes(nameFilter.toLowerCase())) {
-                continue;
-            }
-            
-            // Get matching tiers based on block filter
-            const matchingTiers = getMatchingTiers(component.tiers, blocksFilter);
-            
-            // Skip if no tiers match block filter
-            if (blocksFilter !== null && matchingTiers.length === 0) {
-                continue;
-            }
-            
-            const tiersToShow = blocksFilter !== null ? matchingTiers : Object.keys(component.tiers);
+        // Category content wrapper
+        const categoryContent = document.createElement('div');
+        categoryContent.className = 'category-content';
+        
+        for (const { componentId, component } of filteredItems) {
+            const matchingTiers = getMatchingTiers(component.tiers, blocksFilter, tierFilter);
+            const tiersToShow = matchingTiers.length > 0 ? matchingTiers : Object.keys(component.tiers);
             
             // Check if any tier has a quantity set
             const hasSelection = tiersToShow.some(tier => {
@@ -216,12 +679,12 @@ function renderComponents() {
                 return (componentQuantities.get(key) || 0) > 0;
             });
             
-            const isExpanded = expandedComponents.has(componentId);
+            const isComponentExpanded = expandedComponents.has(componentId);
             
             // Create accordion
             const accordion = document.createElement('div');
             accordion.className = 'component-accordion';
-            if (isExpanded) accordion.classList.add('expanded');
+            if (isComponentExpanded) accordion.classList.add('expanded');
             if (hasSelection) accordion.classList.add('has-selection');
             accordion.dataset.componentId = componentId;
             
@@ -229,9 +692,9 @@ function renderComponents() {
             const header = document.createElement('div');
             header.className = 'component-header';
             
-            const toggle = document.createElement('span');
-            toggle.className = 'component-toggle';
-            toggle.textContent = '▶';
+            const compToggle = document.createElement('span');
+            compToggle.className = 'component-toggle';
+            compToggle.textContent = '▶';
             
             const name = document.createElement('span');
             name.className = 'component-name';
@@ -241,7 +704,7 @@ function renderComponents() {
             badge.className = 'component-badge';
             badge.textContent = `${tiersToShow.length} tier${tiersToShow.length !== 1 ? 's' : ''}`;
             
-            header.appendChild(toggle);
+            header.appendChild(compToggle);
             header.appendChild(name);
             header.appendChild(badge);
             
@@ -260,7 +723,7 @@ function renderComponents() {
                 
                 const tierLabel = document.createElement('span');
                 tierLabel.className = 'tier-label';
-                tierLabel.textContent = `Mk${tier}`;
+                tierLabel.textContent = `Mk ${tier}`;
                 
                 const quantityInput = document.createElement('input');
                 quantityInput.type = 'number';
@@ -275,7 +738,7 @@ function renderComponents() {
                 
                 const blocks = document.createElement('span');
                 blocks.className = 'tier-blocks';
-                blocks.textContent = `${blockCount} block${blockCount !== 1 ? 's' : ''}`;
+                blocks.textContent = `${blockCount} blocks`;
                 
                 tierItem.appendChild(tierLabel);
                 tierItem.appendChild(quantityInput);
@@ -302,19 +765,29 @@ function renderComponents() {
                 renderComponents();
             });
             
-            container.appendChild(accordion);
+            categoryContent.appendChild(accordion);
         }
+        
+        container.appendChild(categoryContent);
     }
 }
 
 /**
- * Get tiers that match the block filter
+ * Get tiers that match the filters
  */
-function getMatchingTiers(tiers, blockFilter) {
-    if (blockFilter === null) return Object.keys(tiers);
-    
+function getMatchingTiers(tiers, blockFilter, tierFilterValue) {
     return Object.entries(tiers)
-        .filter(([tier, data]) => countCells(data.shape) === blockFilter)
+        .filter(([tier, data]) => {
+            // Block filter
+            if (blockFilter !== null && countCells(data.shape) !== blockFilter) {
+                return false;
+            }
+            // Tier filter
+            if (tierFilterValue && tier !== tierFilterValue) {
+                return false;
+            }
+            return true;
+        })
         .map(([tier]) => tier);
 }
 
@@ -333,8 +806,16 @@ function handleQuantityChange(e) {
         componentQuantities.delete(key);
     }
     
+    // Sync priority list
+    syncPriorityList(componentId, tier, qty);
+    
     // Update accordion selection state
     updateAccordionSelection(componentId);
+    
+    // Clear solution since components changed
+    clearSolution();
+    placedPriorityIds.clear();
+    renderGrid();
 }
 
 /**
@@ -358,14 +839,12 @@ function updateAccordionSelection(componentId) {
 
 /**
  * Create a preview element for a shape
- * @param {number[][]} shape - The shape
- * @returns {HTMLElement} - Preview element
  */
 function createShapePreview(shape) {
     const preview = document.createElement('div');
     preview.className = 'tier-preview';
-    preview.style.gridTemplateColumns = `repeat(${shape[0].length}, 10px)`;
-    preview.style.gridTemplateRows = `repeat(${shape.length}, 10px)`;
+    preview.style.gridTemplateColumns = `repeat(${shape[0].length}, 8px)`;
+    preview.style.gridTemplateRows = `repeat(${shape.length}, 8px)`;
     
     for (let row = 0; row < shape.length; row++) {
         for (let col = 0; col < shape[row].length; col++) {
@@ -380,28 +859,24 @@ function createShapePreview(shape) {
 }
 
 /**
- * Get selected components as array for solver
- * @returns {Array} - Array of component objects with shapes
+ * Get selected components from priority list for solver
  */
-function getSelectedComponents() {
+function getSelectedComponentsFromPriority() {
     const components = getComponents();
     const selected = [];
     
-    for (const [key, quantity] of componentQuantities.entries()) {
-        const [componentId, tier] = key.split('_');
-        const component = components[componentId];
+    for (const item of priorityList) {
+        const component = components[item.componentId];
+        if (!component || !component.tiers[item.tier]) continue;
         
-        if (component && component.tiers[tier]) {
-            for (let i = 0; i < quantity; i++) {
-                selected.push({
-                    id: `${componentId}_${tier}_${i}`,
-                    name: `${component.name} Mk${tier}`,
-                    componentName: `${component.name} Mk${tier}`,
-                    shape: component.tiers[tier].shape,
-                    instanceId: `${componentId}_${tier}_${i}`
-                });
-            }
-        }
+        selected.push({
+            id: item.id,
+            priorityId: item.id,
+            name: `${component.name} Mk ${item.tier}`,
+            componentName: `${component.name} Mk ${item.tier}`,
+            shape: component.tiers[item.tier].shape,
+            mandatory: item.mandatory
+        });
     }
     
     return selected;
@@ -414,31 +889,50 @@ function setupEventListeners() {
     // Grid cell click
     document.getElementById('grid-container').addEventListener('click', (e) => {
         const cell = e.target.closest('.grid-cell');
-        if (cell) {
+        if (cell && !cell.classList.contains('has-piece')) {
             const row = parseInt(cell.dataset.row);
             const col = parseInt(cell.dataset.col);
             toggleCell(row, col);
             clearSolution();
+            placedPriorityIds.clear();
             renderGrid();
+            renderPriorityList();
         }
     });
     
-    // Reactor selector
-    document.getElementById('reactor-select').addEventListener('change', (e) => {
-        currentReactor = e.target.value;
-        applyGridConfig();
+    // Grid hover for highlighting priority items
+    document.getElementById('grid-container').addEventListener('mouseover', (e) => {
+        const overlay = e.target.closest('.piece-overlay');
+        if (overlay && overlay.dataset.priorityId) {
+            highlightPriorityItem(overlay.dataset.priorityId);
+        }
     });
     
-    // Aux generator 1 selector
-    document.getElementById('aux1-select').addEventListener('change', (e) => {
-        currentAux1 = e.target.value;
-        applyGridConfig();
+    document.getElementById('grid-container').addEventListener('mouseout', (e) => {
+        const overlay = e.target.closest('.piece-overlay');
+        if (overlay && overlay.dataset.priorityId) {
+            unhighlightPriorityItem(overlay.dataset.priorityId);
+        }
     });
     
-    // Aux generator 2 selector
-    document.getElementById('aux2-select').addEventListener('change', (e) => {
-        currentAux2 = e.target.value;
-        applyGridConfig();
+    // Custom dropdown toggles
+    document.querySelectorAll('.custom-dropdown').forEach(dropdown => {
+        const selected = dropdown.querySelector('.dropdown-selected');
+        selected.addEventListener('click', (e) => {
+            e.stopPropagation();
+            // Close other dropdowns
+            document.querySelectorAll('.custom-dropdown').forEach(d => {
+                if (d !== dropdown) d.classList.remove('open');
+            });
+            dropdown.classList.toggle('open');
+        });
+    });
+    
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', () => {
+        document.querySelectorAll('.custom-dropdown').forEach(d => {
+            d.classList.remove('open');
+        });
     });
     
     // Filter inputs
@@ -452,17 +946,25 @@ function setupEventListeners() {
         renderComponents();
     });
     
+    document.getElementById('filter-tier').addEventListener('change', (e) => {
+        tierFilter = e.target.value;
+        renderComponents();
+    });
+    
     // Clear grid button
     document.getElementById('clear-grid-btn').addEventListener('click', () => {
         clearGrid();
         clearSolution();
+        placedPriorityIds.clear();
         currentReactor = '';
+        currentReactorTier = '1';
         currentAux1 = 'none';
+        currentAux1Tier = '1';
         currentAux2 = 'none';
-        document.getElementById('reactor-select').value = '';
-        document.getElementById('aux1-select').value = 'none';
-        document.getElementById('aux2-select').value = 'none';
+        currentAux2Tier = '1';
+        renderGridConfig();
         renderGrid();
+        renderPriorityList();
         updateGridStats();
         updateStatus('Grid cleared', 'info');
     });
@@ -470,7 +972,9 @@ function setupEventListeners() {
     // Clear solution button
     document.getElementById('clear-solution-btn').addEventListener('click', () => {
         clearSolution();
+        placedPriorityIds.clear();
         renderGrid();
+        renderPriorityList();
         updateStatus('Solution cleared', 'info');
     });
     
@@ -484,12 +988,17 @@ function setupEventListeners() {
  * Run the solver
  */
 function runSolver() {
-    const selectedComponents = getSelectedComponents();
+    const selectedComponents = getSelectedComponentsFromPriority();
     const gridState = getGridState();
     const gridSize = getGridSize();
-    const requireAll = document.getElementById('require-all-checkbox').checked;
     
     clearSolution();
+    placedPriorityIds.clear();
+    
+    if (selectedComponents.length === 0) {
+        updateStatus('Add components to the build order first', 'error');
+        return;
+    }
     
     const solveBtn = document.getElementById('solve-btn');
     solveBtn.disabled = true;
@@ -497,16 +1006,21 @@ function runSolver() {
     updateStatus('Searching for solution...', 'info');
     
     setTimeout(() => {
-        const result = solve(selectedComponents, gridState, gridSize, requireAll);
+        const result = solve(selectedComponents, gridState, gridSize);
         
-        if (result.success) {
+        if (result.solution && result.solution.length > 0) {
             setSolution(result.solution);
+            
+            // Track which priority items are placed
+            placedPriorityIds = new Set(result.solution.map(p => p.priorityId));
+            
             updateStatus(result.message, 'success');
         } else {
-            updateStatus(result.message, 'error');
+            updateStatus(result.message || 'No solution found', 'error');
         }
         
         renderGrid();
+        renderPriorityList();
         
         solveBtn.disabled = false;
         solveBtn.textContent = 'Solve';
@@ -515,8 +1029,6 @@ function runSolver() {
 
 /**
  * Update the status message
- * @param {string} message - Status message
- * @param {string} type - Message type ('success', 'error', 'info')
  */
 function updateStatus(message, type) {
     const status = document.getElementById('solve-status');

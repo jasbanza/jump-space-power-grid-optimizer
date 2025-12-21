@@ -5,14 +5,17 @@
  * - 0 = unpowered (cannot place)
  * - 1 = powered (can place)
  * - 2 = protected (can place, prioritized)
+ * 
+ * Priority-based solving:
+ * - Components are placed in priority order (as defined by user)
+ * - Mandatory components are attempted first
+ * - If a component doesn't fit, it's skipped (tracked as not placed)
  */
 
 import { getAllRotations, getOccupiedCells, countCells } from './components.js';
 
 /**
  * Check if a cell is powered (value 1 or 2)
- * @param {number} value - Cell value
- * @returns {boolean} - Whether cell is powered
  */
 function isPowered(value) {
     return value === 1 || value === 2;
@@ -20,27 +23,17 @@ function isPowered(value) {
 
 /**
  * Check if a piece can be placed at a given position
- * @param {number[][]} shape - The piece shape matrix
- * @param {number} startRow - Top-left row position
- * @param {number} startCol - Top-left column position
- * @param {number[][]} gridState - Current grid state
- * @param {Set<string>} occupiedCells - Set of already occupied cell keys "row,col"
- * @param {number} gridSize - Size of the grid
- * @returns {boolean} - Whether the piece can be placed
  */
 function canPlace(shape, startRow, startCol, gridState, occupiedCells, gridSize) {
     const cells = getOccupiedCells(shape, startRow, startCol);
     
     for (const cell of cells) {
-        // Check bounds
         if (cell.row < 0 || cell.row >= gridSize || cell.col < 0 || cell.col >= gridSize) {
             return false;
         }
-        // Check if cell is powered (1 or 2)
         if (!isPowered(gridState[cell.row][cell.col])) {
             return false;
         }
-        // Check if cell is already occupied by another piece
         const key = `${cell.row},${cell.col}`;
         if (occupiedCells.has(key)) {
             return false;
@@ -52,11 +45,6 @@ function canPlace(shape, startRow, startCol, gridState, occupiedCells, gridSize)
 
 /**
  * Count how many protected cells this placement would cover
- * @param {number[][]} shape - The piece shape matrix
- * @param {number} startRow - Top-left row position
- * @param {number} startCol - Top-left column position
- * @param {number[][]} gridState - Current grid state
- * @returns {number} - Number of protected cells covered
  */
 function countProtectedCells(shape, startRow, startCol, gridState) {
     const cells = getOccupiedCells(shape, startRow, startCol);
@@ -72,12 +60,7 @@ function countProtectedCells(shape, startRow, startCol, gridState) {
 }
 
 /**
- * Place a piece on the grid (mark cells as occupied)
- * @param {number[][]} shape - The piece shape matrix
- * @param {number} startRow - Top-left row position
- * @param {number} startCol - Top-left column position
- * @param {Set<string>} occupiedCells - Set of occupied cell keys
- * @returns {string[]} - Array of newly occupied cell keys
+ * Place a piece on the grid
  */
 function placePiece(shape, startRow, startCol, occupiedCells) {
     const cells = getOccupiedCells(shape, startRow, startCol);
@@ -93,9 +76,7 @@ function placePiece(shape, startRow, startCol, occupiedCells) {
 }
 
 /**
- * Remove a piece from the grid (unmark cells as occupied)
- * @param {string[]} placedKeys - Array of cell keys to remove
- * @param {Set<string>} occupiedCells - Set of occupied cell keys
+ * Remove a piece from the grid
  */
 function removePiece(placedKeys, occupiedCells) {
     for (const key of placedKeys) {
@@ -105,11 +86,6 @@ function removePiece(placedKeys, occupiedCells) {
 
 /**
  * Get all valid placements for a piece, sorted by protected cell coverage (descending)
- * @param {Object} piece - Piece object with shape
- * @param {number[][]} gridState - Grid state
- * @param {Set<string>} occupiedCells - Occupied cells
- * @param {number} gridSize - Grid size
- * @returns {Array} - Array of valid placements sorted by protected coverage
  */
 function getValidPlacements(piece, gridState, occupiedCells, gridSize) {
     const placements = [];
@@ -143,193 +119,85 @@ function getValidPlacements(piece, gridState, occupiedCells, gridSize) {
 }
 
 /**
- * Backtracking solver - try to place all pieces
- * Prioritizes placements that cover protected cells
- * @param {Array} pieces - Array of piece objects with shapes
- * @param {number} pieceIndex - Current piece index
- * @param {number[][]} gridState - Grid state
- * @param {Set<string>} occupiedCells - Occupied cells
- * @param {number} gridSize - Grid size
- * @param {Array} placements - Current placements
- * @param {boolean} requireAll - Whether all pieces must be placed
- * @returns {Array|null} - Solution or null
+ * Try to place a single piece, return placement or null
  */
-function backtrack(pieces, pieceIndex, gridState, occupiedCells, gridSize, placements, requireAll) {
-    // Base case: all pieces placed
-    if (pieceIndex >= pieces.length) {
+function tryPlacePiece(piece, gridState, occupiedCells, gridSize) {
+    const validPlacements = getValidPlacements(piece, gridState, occupiedCells, gridSize);
+    
+    if (validPlacements.length === 0) {
+        return null;
+    }
+    
+    // Take the best placement (most protected cells)
+    const best = validPlacements[0];
+    const placedKeys = placePiece(best.shape, best.row, best.col, occupiedCells);
+    
+    return {
+        pieceId: piece.id,
+        priorityId: piece.priorityId,
+        pieceName: piece.name,
+        componentName: piece.componentName || piece.name,
+        shape: best.shape,
+        row: best.row,
+        col: best.col,
+        rotation: best.rotIdx * 90,
+        cells: getOccupiedCells(best.shape, best.row, best.col),
+        placedKeys
+    };
+}
+
+/**
+ * Try backtracking to fit mandatory pieces
+ * Attempts to find a configuration where all mandatory pieces can fit
+ */
+function backtrackMandatory(mandatoryPieces, pieceIndex, gridState, occupiedCells, gridSize, placements) {
+    if (pieceIndex >= mandatoryPieces.length) {
         return [...placements];
     }
     
-    const piece = pieces[pieceIndex];
+    const piece = mandatoryPieces[pieceIndex];
     const validPlacements = getValidPlacements(piece, gridState, occupiedCells, gridSize);
     
-    // Try each valid placement (sorted by protected coverage)
     for (const placement of validPlacements) {
-        // Place the piece
         const placedKeys = placePiece(placement.shape, placement.row, placement.col, occupiedCells);
         placements.push({
             pieceId: piece.id,
+            priorityId: piece.priorityId,
             pieceName: piece.name,
             componentName: piece.componentName || piece.name,
             shape: placement.shape,
             row: placement.row,
             col: placement.col,
             rotation: placement.rotIdx * 90,
-            cells: getOccupiedCells(placement.shape, placement.row, placement.col)
+            cells: getOccupiedCells(placement.shape, placement.row, placement.col),
+            placedKeys
         });
         
-        // Recurse
-        const result = backtrack(
-            pieces, pieceIndex + 1, gridState, occupiedCells, 
-            gridSize, placements, requireAll
+        const result = backtrackMandatory(
+            mandatoryPieces, pieceIndex + 1, gridState, occupiedCells, gridSize, placements
         );
         
         if (result !== null) {
             return result;
         }
         
-        // Backtrack
         removePiece(placedKeys, occupiedCells);
         placements.pop();
-    }
-    
-    // If we're in maximize mode and couldn't place this piece, try skipping it
-    if (!requireAll) {
-        return backtrack(
-            pieces, pieceIndex + 1, gridState, occupiedCells,
-            gridSize, placements, requireAll
-        );
     }
     
     return null;
 }
 
 /**
- * Find the best solution (maximize coverage, prioritize protected cells)
- * @param {Array} pieces - Array of piece objects
- * @param {number[][]} gridState - Grid state
- * @param {number} gridSize - Grid size
- * @returns {Array} - Best solution found
+ * Main solve function - priority-based solving
+ * 
+ * Algorithm:
+ * 1. Separate mandatory and non-mandatory pieces
+ * 2. Use backtracking to place all mandatory pieces
+ * 3. Greedily place non-mandatory pieces in priority order
+ * 4. Track which pieces were placed and which weren't
  */
-function findBestSolution(pieces, gridState, gridSize) {
-    let bestSolution = [];
-    let bestScore = 0; // Score = protectedCovered * 1000 + totalCovered
-    
-    // Sort pieces by size (largest first) for better results
-    const sortedPieces = [...pieces].sort((a, b) => {
-        return countCells(b.shape) - countCells(a.shape);
-    });
-    
-    // Try all subsets of pieces (for small numbers of pieces)
-    if (pieces.length <= 10) {
-        const permutations = getPermutations(sortedPieces);
-        
-        for (const perm of permutations) {
-            const occupiedCells = new Set();
-            const placements = [];
-            let protectedCovered = 0;
-            
-            for (const piece of perm) {
-                const validPlacements = getValidPlacements(piece, gridState, occupiedCells, gridSize);
-                
-                if (validPlacements.length > 0) {
-                    // Take the placement with most protected cells
-                    const best = validPlacements[0];
-                    placePiece(best.shape, best.row, best.col, occupiedCells);
-                    protectedCovered += best.protectedCount;
-                    placements.push({
-                        pieceId: piece.id,
-                        pieceName: piece.name,
-                        componentName: piece.componentName || piece.name,
-                        shape: best.shape,
-                        row: best.row,
-                        col: best.col,
-                        rotation: best.rotIdx * 90,
-                        cells: getOccupiedCells(best.shape, best.row, best.col)
-                    });
-                }
-            }
-            
-            const score = protectedCovered * 1000 + occupiedCells.size;
-            if (score > bestScore) {
-                bestScore = score;
-                bestSolution = [...placements];
-            }
-        }
-    } else {
-        // Greedy approach for larger piece sets
-        const occupiedCells = new Set();
-        
-        for (const piece of sortedPieces) {
-            const validPlacements = getValidPlacements(piece, gridState, occupiedCells, gridSize);
-            
-            if (validPlacements.length > 0) {
-                const best = validPlacements[0];
-                placePiece(best.shape, best.row, best.col, occupiedCells);
-                bestSolution.push({
-                    pieceId: piece.id,
-                    pieceName: piece.name,
-                    componentName: piece.componentName || piece.name,
-                    shape: best.shape,
-                    row: best.row,
-                    col: best.col,
-                    rotation: best.rotIdx * 90,
-                    cells: getOccupiedCells(best.shape, best.row, best.col)
-                });
-            }
-        }
-    }
-    
-    return bestSolution;
-}
-
-/**
- * Generate permutations of an array (limited to avoid explosion)
- * @param {Array} arr - Input array
- * @returns {Array} - Array of permutations
- */
-function getPermutations(arr) {
-    if (arr.length <= 1) return [arr];
-    if (arr.length > 8) {
-        // Too many permutations, return just a few orderings
-        const result = [arr];
-        const reversed = [...arr].reverse();
-        result.push(reversed);
-        // Shuffle a few times
-        for (let i = 0; i < 5; i++) {
-            const shuffled = [...arr].sort(() => Math.random() - 0.5);
-            result.push(shuffled);
-        }
-        return result;
-    }
-    
-    const result = [];
-    
-    function permute(current, remaining) {
-        if (remaining.length === 0) {
-            result.push(current);
-            return;
-        }
-        for (let i = 0; i < remaining.length; i++) {
-            const next = [...current, remaining[i]];
-            const rest = [...remaining.slice(0, i), ...remaining.slice(i + 1)];
-            permute(next, rest);
-        }
-    }
-    
-    permute([], arr);
-    return result;
-}
-
-/**
- * Main solve function
- * @param {Array} selectedPieces - Array of selected piece objects
- * @param {number[][]} gridState - Grid state (0=unpowered, 1=powered, 2=protected)
- * @param {number} gridSize - Size of the grid
- * @param {boolean} requireAll - Whether all pieces must be placed
- * @returns {{success: boolean, solution: Array, message: string}}
- */
-export function solve(selectedPieces, gridState, gridSize, requireAll) {
+export function solve(selectedPieces, gridState, gridSize) {
     if (selectedPieces.length === 0) {
         return {
             success: false,
@@ -359,43 +227,45 @@ export function solve(selectedPieces, gridState, gridSize, requireAll) {
         };
     }
     
-    // Count total cells needed by selected pieces
-    let totalPieceCells = 0;
-    for (const piece of selectedPieces) {
-        totalPieceCells += countCells(piece.shape);
-    }
+    // Separate mandatory and non-mandatory pieces, maintaining priority order
+    const mandatoryPieces = selectedPieces.filter(p => p.mandatory);
+    const optionalPieces = selectedPieces.filter(p => !p.mandatory);
     
-    if (requireAll && totalPieceCells > poweredCount) {
-        return {
-            success: false,
-            solution: [],
-            message: `Selected components need ${totalPieceCells} cells, but only ${poweredCount} powered cells available`
-        };
-    }
+    const occupiedCells = new Set();
+    let solution = [];
+    let mandatoryFailed = false;
     
-    let solution;
-    
-    if (requireAll) {
-        // Use backtracking to find exact solution
-        const occupiedCells = new Set();
-        solution = backtrack(
-            selectedPieces, 0, gridState, occupiedCells, 
-            gridSize, [], true
+    // Step 1: Try to place all mandatory pieces using backtracking
+    if (mandatoryPieces.length > 0) {
+        const mandatorySolution = backtrackMandatory(
+            mandatoryPieces, 0, gridState, occupiedCells, gridSize, []
         );
         
-        if (solution === null) {
-            return {
-                success: false,
-                solution: [],
-                message: 'No solution found - components cannot all fit on the powered cells'
-            };
+        if (mandatorySolution === null) {
+            // Could not fit all mandatory pieces
+            mandatoryFailed = true;
+            
+            // Fall back to greedy for mandatory pieces
+            for (const piece of mandatoryPieces) {
+                const placement = tryPlacePiece(piece, gridState, occupiedCells, gridSize);
+                if (placement) {
+                    solution.push(placement);
+                }
+            }
+        } else {
+            solution = mandatorySolution;
         }
-    } else {
-        // Maximize coverage
-        solution = findBestSolution(selectedPieces, gridState, gridSize);
     }
     
-    // Calculate coverage
+    // Step 2: Place non-mandatory pieces in priority order (greedy)
+    for (const piece of optionalPieces) {
+        const placement = tryPlacePiece(piece, gridState, occupiedCells, gridSize);
+        if (placement) {
+            solution.push(placement);
+        }
+    }
+    
+    // Calculate coverage stats
     let coveredCells = 0;
     let coveredProtected = 0;
     for (const placement of solution) {
@@ -409,15 +279,42 @@ export function solve(selectedPieces, gridState, gridSize, requireAll) {
     
     const componentsPlaced = solution.length;
     const totalComponents = selectedPieces.length;
+    const mandatoryPlaced = solution.filter(p => 
+        mandatoryPieces.some(m => m.priorityId === p.priorityId)
+    ).length;
+    const totalMandatory = mandatoryPieces.length;
     
-    let message = `Placed ${componentsPlaced}/${totalComponents} components, covering ${coveredCells}/${poweredCount} cells`;
+    // Build message
+    let message = `Placed ${componentsPlaced}/${totalComponents} components`;
+    
+    if (totalMandatory > 0) {
+        if (mandatoryPlaced < totalMandatory) {
+            message = `Warning: Only ${mandatoryPlaced}/${totalMandatory} mandatory components fit. `;
+            message += `Total: ${componentsPlaced}/${totalComponents} placed`;
+        } else {
+            message += ` (all ${totalMandatory} mandatory)`;
+        }
+    }
+    
+    message += `, covering ${coveredCells}/${poweredCount} cells`;
+    
     if (protectedCount > 0) {
         message += ` (${coveredProtected}/${protectedCount} protected)`;
     }
     
     return {
-        success: true,
+        success: componentsPlaced > 0,
         solution: solution,
-        message: message
+        message: message,
+        stats: {
+            placed: componentsPlaced,
+            total: totalComponents,
+            mandatoryPlaced,
+            totalMandatory,
+            coveredCells,
+            poweredCount,
+            coveredProtected,
+            protectedCount
+        }
     };
 }

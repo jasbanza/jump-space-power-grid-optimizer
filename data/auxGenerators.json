@@ -2,45 +2,92 @@
   "none": {
     "id": "none",
     "name": "None",
-    "powerGeneration": 0,
-    "protectedPower": 0,
-    "unprotectedPower": 0,
-    "grid": [
-      [0, 0, 0, 0, 0, 0, 0, 0],
-      [0, 0, 0, 0, 0, 0, 0, 0]
-    ]
+    "category": "AUX GENERATORS",
+    "tiers": {
+      "1": {
+        "powerGeneration": 0,
+        "protectedPower": 0,
+        "unprotectedPower": 0,
+        "grid": [
+          [0, 0, 0, 0, 0, 0, 0, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0]
+        ]
+      }
+    }
   },
   "bioFissionGenerator": {
     "id": "bioFissionGenerator",
     "name": "Bio Fission Generator",
-    "powerGeneration": 10,
-    "protectedPower": 0,
-    "unprotectedPower": 10,
-    "grid": [
-      [0, 1, 1, 1, 1, 1, 1, 0],
-      [0, 1, 1, 1, 1, 0, 0, 0]
-    ]
+    "category": "AUX GENERATORS",
+    "tiers": {
+      "1": {
+        "powerGeneration": 10,
+        "protectedPower": 0,
+        "unprotectedPower": 10,
+        "grid": [
+          [0, 1, 1, 1, 1, 1, 1, 0],
+          [0, 0, 0, 0, 0, 0, 0, 0]
+        ]
+      },
+      "2": {
+        "powerGeneration": 10,
+        "protectedPower": 0,
+        "unprotectedPower": 10,
+        "grid": [
+          [1, 1, 1, 1, 1, 1, 1, 1],
+          [0, 0, 0, 0, 0, 0, 0, 0]
+        ]
+      },
+      "3": {
+        "powerGeneration": 10,
+        "protectedPower": 0,
+        "unprotectedPower": 10,
+        "grid": [
+          [1, 1, 1, 1, 1, 1, 1, 1],
+          [1, 0, 0, 0, 0, 0, 0, 1]
+        ]
+      }
+    }
   },
   "nullTensionGenerator": {
     "id": "nullTensionGenerator",
     "name": "Null Tension Generator",
-    "powerGeneration": 8,
-    "protectedPower": 4,
-    "unprotectedPower": 4,
-    "grid": [
-      [0, 2, 2, 1, 1, 2, 2, 0],
-      [0, 0, 0, 1, 1, 0, 0, 0]
-    ]
+    "category": "AUX GENERATORS",
+    "tiers": {
+      "3": {
+        "powerGeneration": 8,
+        "protectedPower": 4,
+        "unprotectedPower": 4,
+        "grid": [
+          [0, 0, 1, 1, 1, 1, 0, 0],
+          [0, 0, 2, 2, 2, 2, 0, 0]
+        ]
+      }
+    }
   },
   "materiaShiftGenerator": {
     "id": "materiaShiftGenerator",
     "name": "Materia Shift Generator",
-    "powerGeneration": 8,
-    "protectedPower": 4,
-    "unprotectedPower": 4,
-    "grid": [
-      [0, 2, 1, 1, 1, 1, 2, 0],
-      [0, 2, 0, 0, 0, 0, 2, 0]
-    ]
+    "category": "AUX GENERATORS",
+    "tiers": {
+      "2": {
+        "powerGeneration": 8,
+        "protectedPower": 4,
+        "unprotectedPower": 4,
+        "grid": [
+          [0, 1, 2, 0, 0, 2, 1, 0],
+          [0, 2, 1, 0, 0, 1, 2, 0]
+        ]
+      },
+      "3": {
+        "powerGeneration": 8,
+        "protectedPower": 6,
+        "unprotectedPower": 2,
+        "grid": [
+          [0, 1, 2, 0, 0, 2, 1, 0],
+          [0, 2, 2, 0, 0, 2, 2, 0]
+        ]
+      }
+    }
   }
 }

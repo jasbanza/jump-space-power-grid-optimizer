@@ -24,11 +24,38 @@ Each reactor and aux generator contributes:
 - **Protected Power**: Number of protected (blue) cells
 - **Unprotected Power**: Number of standard powered (green) cells
 
+## Reactors & Aux Generators
+
+### Tier System
+Both reactors and auxiliary generators support **multiple tiers** (Mk 1, Mk 2, etc.). Each tier can have:
+- Different grid layouts
+- Different power generation values
+- Different protected/unprotected ratios
+
+### Reactors (8x4)
+Reactors determine the top half of the power grid.
+
+| Reactor | Tier | Total | Protected | Unprotected |
+|---------|------|-------|-----------|-------------|
+| Split Reactor | Mk 1 | 22 | 8 | 14 |
+| Solid State Reactor | Mk 1 | 16 | 16 | 0 |
+| Materia Scatter Reactor | Mk 1 | 24 | 8 | 16 |
+| Null Wave Reactor | Mk 1 | 20 | 10 | 10 |
+
+### Auxiliary Generators (8x2)
+Aux generators each provide an 8x2 section. A ship can have **0, 1, or 2** aux generators.
+
+| Aux Generator | Tier | Total | Protected | Unprotected |
+|---------------|------|-------|-----------|-------------|
+| Bio Fission Generator | Mk 1 | 10 | 0 | 10 |
+| Null Tension Generator | Mk 1 | 8 | 4 | 4 |
+| Materia Shift Generator | Mk 1 | 8 | 4 | 4 |
+
 ## Components
 
 ### Component Properties
 - Each component has a **tetris-like shape** defined by a 2D array
-- Components have multiple **tiers** (Mk1, Mk2, Mk3, etc.)
+- Components have multiple **tiers** (Mk 1, Mk 2, Mk 3, etc.)
 - Higher tiers may have **different shapes** (usually larger)
 - Components are organized by **category**:
   - SENSORS
@@ -43,43 +70,48 @@ Each reactor and aux generator contributes:
 3. Components can be **rotated** in 90° increments (0°, 90°, 180°, 270°)
 4. Components **cannot be flipped/mirrored** - only rotation is allowed
 
-## Reactors
+## Build Order & Priority System
 
-Reactors determine the top half (8x4) of the power grid.
+### Priority List
+When you add components to your build, they appear in a **priority list**:
+- **Higher priority** items (top of list) are placed first
+- **Lower priority** items may be skipped if space runs out
+- Drag and drop to reorder priorities
 
-| Reactor | Total | Protected | Unprotected |
-|---------|-------|-----------|-------------|
-| Split Reactor | 22 | 8 | 14 |
-| Solid State Reactor | 16 | 16 | 0 |
-| Materia Scatter Reactor | 24 | 8 | 16 |
-| Null Wave Reactor | 20 | 10 | 10 |
+### Mandatory Components
+Mark components as **mandatory** (checkbox) to indicate "must have":
+- The solver uses backtracking to ensure all mandatory components fit
+- Non-mandatory components are placed greedily after mandatory ones
+- If mandatory components can't all fit, they're highlighted in red
 
-## Auxiliary Generators
-
-Aux generators each provide an 8x2 section. A ship can have **0, 1, or 2** aux generators.
-
-| Aux Generator | Total | Protected | Unprotected |
-|---------------|-------|-----------|-------------|
-| Bio Fission Generator | 10 | 0 | 10 |
-| Null Tension Generator | 8 | 4 | 4 |
-| Materia Shift Generator | 8 | 4 | 4 |
+### Individual Instances
+Each component instance is tracked separately:
+- If you add "Fragment Cannon Mk 2 x3", three separate items appear
+- Each can have different priority
+- Each can be marked mandatory independently
 
 ## Solver Behavior
 
-### Mode 1: Require All Components
-- All selected components **must** be placed
-- Fails if not all components can fit
+### Priority-Based Algorithm
+The solver respects your build order:
 
-### Mode 2: Maximize Coverage (default)
-- Places as many components as possible
-- **Prioritizes protected cells** first
-- Larger components are tried first
-- Always succeeds (may place 0 components if none fit)
+1. **Mandatory Components First**
+   - Uses backtracking to find a valid arrangement for all mandatory components
+   - Prioritizes placements that cover protected (blue) cells
 
-### Optimization Priority
-1. Cover protected (blue) cells first
-2. Maximize total coverage
-3. Fit larger components before smaller ones
+2. **Non-Mandatory Components**
+   - Placed greedily in priority order (top to bottom)
+   - Skipped if they don't fit
+
+3. **Protected Cell Priority**
+   - Within each placement decision, protected cells are preferred
+   - This maximizes use of the limited protected power slots
+
+### Visual Feedback
+- **Placed components**: Semi-transparent overlay showing the power cells beneath
+- **Component labels**: Names displayed on the grid
+- **Hover sync**: Hovering a grid component highlights its list entry (and vice versa)
+- **Not placed**: Items that couldn't fit are highlighted red in the list
 
 ## Contributing Data
 
@@ -89,13 +121,32 @@ Components are defined in `data/components.json`. Each shape is a 2D array where
 - `0` = empty cell
 
 ### Reactor Grids
-Reactors are defined in `data/reactors.json`. Each grid is an 8x4 array where:
+Reactors are defined in `data/reactors.json` with tier support:
+```json
+{
+  "reactorId": {
+    "id": "reactorId",
+    "name": "Reactor Name",
+    "category": "REACTORS",
+    "tiers": {
+      "1": {
+        "powerGeneration": 22,
+        "protectedPower": 8,
+        "unprotectedPower": 14,
+        "grid": [[...], [...], [...], [...]]
+      }
+    }
+  }
+}
+```
+
+Grid values:
 - `0` = unpowered
 - `1` = powered (green)
 - `2` = protected (blue)
 
 ### Aux Generator Grids
-Aux generators are defined in `data/auxGenerators.json`. Each grid is an 8x2 array using the same values.
+Aux generators are defined in `data/auxGenerators.json` with the same tier structure.
 
 ---
 
