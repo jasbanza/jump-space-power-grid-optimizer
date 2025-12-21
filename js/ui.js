@@ -9,8 +9,8 @@ import {
 import { PIECES } from './pieces.js';
 import { solve } from './solver.js';
 
-// Track selected pieces
-const selectedPieces = new Set();
+// Track piece quantities (pieceId -> count)
+const pieceQuantities = new Map();
 
 // Piece colors for visualization
 const PIECE_COLORS = [
@@ -90,12 +90,14 @@ function renderPieces() {
         item.className = 'piece-item';
         item.dataset.pieceId = piece.id;
         
-        // Checkbox
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.className = 'piece-checkbox';
-        checkbox.id = `piece-${piece.id}`;
-        checkbox.checked = selectedPieces.has(piece.id);
+        // Quantity input
+        const quantityInput = document.createElement('input');
+        quantityInput.type = 'number';
+        quantityInput.className = 'piece-quantity';
+        quantityInput.id = `piece-qty-${piece.id}`;
+        quantityInput.min = '0';
+        quantityInput.max = '10';
+        quantityInput.value = pieceQuantities.get(piece.id) || 0;
         
         // Preview
         const preview = createPiecePreview(piece.shape);
@@ -105,18 +107,29 @@ function renderPieces() {
         name.className = 'piece-name';
         name.textContent = piece.name;
         
-        item.appendChild(checkbox);
+        item.appendChild(quantityInput);
         item.appendChild(preview);
         item.appendChild(name);
         
-        // Click handler for the whole item
-        item.addEventListener('click', (e) => {
-            if (e.target !== checkbox) {
-                checkbox.checked = !checkbox.checked;
-            }
-            updatePieceSelection(piece.id, checkbox.checked);
-            item.classList.toggle('selected', checkbox.checked);
+        // Quantity change handler
+        quantityInput.addEventListener('change', (e) => {
+            const qty = parseInt(e.target.value) || 0;
+            updatePieceQuantity(piece.id, qty);
+            item.classList.toggle('selected', qty > 0);
         });
+        
+        // Also handle input event for immediate feedback
+        quantityInput.addEventListener('input', (e) => {
+            const qty = parseInt(e.target.value) || 0;
+            updatePieceQuantity(piece.id, qty);
+            item.classList.toggle('selected', qty > 0);
+        });
+        
+        // Set initial selected state
+        const currentQty = pieceQuantities.get(piece.id) || 0;
+        if (currentQty > 0) {
+            item.classList.add('selected');
+        }
         
         container.appendChild(item);
     }
@@ -146,26 +159,38 @@ function createPiecePreview(shape) {
 }
 
 /**
- * Update piece selection state
+ * Update piece quantity
  * @param {string} pieceId - Piece ID
- * @param {boolean} selected - Whether selected
+ * @param {number} quantity - Number of this piece to use
  */
-function updatePieceSelection(pieceId, selected) {
-    if (selected) {
-        selectedPieces.add(pieceId);
+function updatePieceQuantity(pieceId, quantity) {
+    if (quantity > 0) {
+        pieceQuantities.set(pieceId, quantity);
     } else {
-        selectedPieces.delete(pieceId);
+        pieceQuantities.delete(pieceId);
     }
 }
 
 /**
- * Get selected pieces as array
+ * Get selected pieces as array (with duplicates based on quantity)
  * @returns {Array} - Array of selected piece objects
  */
 function getSelectedPieces() {
-    return Array.from(selectedPieces)
-        .map(id => PIECES[id])
-        .filter(piece => piece !== undefined);
+    const pieces = [];
+    for (const [pieceId, quantity] of pieceQuantities.entries()) {
+        const piece = PIECES[pieceId];
+        if (piece) {
+            // Add the piece multiple times based on quantity
+            for (let i = 0; i < quantity; i++) {
+                // Create a copy with a unique instance id for tracking
+                pieces.push({
+                    ...piece,
+                    instanceId: `${piece.id}_${i}`
+                });
+            }
+        }
+    }
+    return pieces;
 }
 
 /**

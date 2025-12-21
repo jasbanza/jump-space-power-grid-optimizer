@@ -216,11 +216,28 @@ h2 {
     box-shadow: 0 0 10px var(--accent-green-glow);
 }
 
-.piece-checkbox {
-    width: 18px;
-    height: 18px;
+.piece-quantity {
+    width: 45px;
+    height: 28px;
+    padding: 2px 6px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    text-align: center;
     cursor: pointer;
-    accent-color: var(--accent-green);
+}
+
+.piece-quantity:focus {
+    outline: none;
+    border-color: var(--accent-green);
+    box-shadow: 0 0 5px var(--accent-green-glow);
+}
+
+.piece-quantity::-webkit-inner-spin-button,
+.piece-quantity::-webkit-outer-spin-button {
+    opacity: 1;
 }
 
 .piece-preview {

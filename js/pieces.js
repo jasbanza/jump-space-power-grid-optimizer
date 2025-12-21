@@ -105,6 +105,15 @@ export const PIECES = {
             [1, 1, 1],
             [0, 1, 0]
         ]
+    },
+    uShape: {
+        id: 'uShape',
+        name: 'U-Shape',
+        shape: [
+            [1, 0, 1],
+            [1, 0, 1],
+            [1, 1, 1]
+        ]
     }
 };
 
