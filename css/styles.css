@@ -795,13 +795,13 @@ h2 {
 }
 
 #filter-blocks {
-    width: 60px;
+    width: 75px;
     flex: none;
 }
 
 #filter-tier {
-    flex: 1;
-    min-width: 70px;
+    width: 80px;
+    flex: none;
 }
 
 /* Components section */
