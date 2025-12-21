@@ -94,39 +94,114 @@ h2 {
     margin-bottom: 15px;
 }
 
-/* Template selector */
-.template-selector {
+/* Grid with Side Selectors Layout */
+.grid-with-selectors {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+}
+
+.grid-selectors {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 2px 0;
+}
+
+.selector-row {
     display: flex;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 15px;
 }
 
-.template-selector label {
-    color: var(--text-secondary);
-    font-size: 0.9rem;
-}
-
-.template-selector select {
-    padding: 8px 12px;
+.selector-row select {
+    width: 140px;
+    padding: 6px 8px;
     border: 1px solid var(--border-color);
     border-radius: 4px;
     background-color: var(--bg-tertiary);
     color: var(--text-primary);
-    font-size: 0.9rem;
+    font-size: 0.75rem;
     cursor: pointer;
-    min-width: 180px;
+    text-overflow: ellipsis;
 }
 
-.template-selector select:focus {
+.selector-row select:focus {
     outline: none;
     border-color: var(--accent-green);
     box-shadow: 0 0 5px var(--accent-green-glow);
 }
 
-.template-selector select option {
+.selector-row select option {
     background-color: var(--bg-secondary);
     color: var(--text-primary);
+}
+
+/* Reactor selector spans 4 rows (4 * 42px = 168px) */
+.reactor-selector {
+    height: 168px;
+    background: linear-gradient(to bottom, var(--bg-tertiary) 0%, transparent 100%);
+    border-radius: 4px 0 0 4px;
+    padding-left: 4px;
+}
+
+.reactor-selector select {
+    height: 100%;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    padding: 10px 6px;
+    border-color: var(--accent-blue-dim);
+}
+
+/* Aux selectors span 2 rows each (2 * 42px = 84px) */
+.aux1-selector,
+.aux2-selector {
+    height: 84px;
+    background: linear-gradient(to bottom, var(--bg-secondary) 0%, transparent 100%);
+    border-radius: 4px 0 0 4px;
+    padding-left: 4px;
+}
+
+.aux1-selector select,
+.aux2-selector select {
+    height: 100%;
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    padding: 8px 6px;
+    border-color: var(--accent-green-dim);
+}
+
+/* Grid Stats */
+.grid-stats {
+    margin-top: 15px;
+    padding: 10px 15px;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.grid-stats .stat {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.grid-stats .stat strong {
+    color: var(--text-primary);
+}
+
+.grid-stats .stat.protected strong {
+    color: var(--accent-blue);
+}
+
+.grid-stats .stat.unprotected strong {
+    color: var(--accent-green);
 }
 
 /* Grid */
@@ -270,6 +345,22 @@ h2 {
 
 .filter-input::placeholder {
     color: var(--text-secondary);
+}
+
+/* Component Category Headers */
+.component-category {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    padding: 8px 0 4px 0;
+    margin-top: 8px;
+    border-bottom: 1px solid var(--border-color);
+    letter-spacing: 0.5px;
+}
+
+.component-category:first-child {
+    margin-top: 0;
 }
 
 /* Component Accordion */
@@ -549,21 +640,21 @@ footer a:hover {
 .piece-color-9 { background-color: #87ceeb; }
 
 /* Scrollbar styling */
-#pieces-container::-webkit-scrollbar {
+#components-container::-webkit-scrollbar {
     width: 6px;
 }
 
-#pieces-container::-webkit-scrollbar-track {
+#components-container::-webkit-scrollbar-track {
     background: var(--bg-secondary);
     border-radius: 3px;
 }
 
-#pieces-container::-webkit-scrollbar-thumb {
+#components-container::-webkit-scrollbar-thumb {
     background: var(--border-color);
     border-radius: 3px;
 }
 
-#pieces-container::-webkit-scrollbar-thumb:hover {
+#components-container::-webkit-scrollbar-thumb:hover {
     background: var(--text-secondary);
 }
 
@@ -575,13 +666,42 @@ footer a:hover {
     }
 
     .grid-section,
-    .pieces-section,
+    .components-section,
     .solve-section {
         grid-column: 1;
         grid-row: auto;
     }
 
+    .grid-with-selectors {
+        justify-content: center;
+    }
+
     #grid-container {
         justify-self: center;
+    }
+}
+
+@media (max-width: 600px) {
+    .grid-with-selectors {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .grid-selectors {
+        flex-direction: row;
+        gap: 10px;
+        margin-bottom: 10px;
+    }
+
+    .selector-row {
+        height: auto !important;
+    }
+
+    .selector-row select {
+        writing-mode: horizontal-tb;
+        transform: none;
+        height: auto !important;
+        width: 100px;
+        padding: 8px;
     }
 }

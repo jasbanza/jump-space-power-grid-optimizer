@@ -2,39 +2,41 @@
 
 A web-based tool to optimize component placement on your ship's power grid in Jump Space.
 
-## [🚀 Launch the App Here](https://jasbanza.github.io/jump-space-power-grid-optimizer/)
+## [Launch the App Here](https://jasbanza.github.io/jump-space-power-grid-optimizer/)
 
 ---
 
 ## Features
 
-- **Interactive Grid Editor**: Click to toggle cells between powered (green) and unpowered (black)
-- **Protected Cells**: Light blue cells indicate priority placement areas (from templates)
-- **Component Library**: Pre-defined tetris-like pieces with multiple upgrade tiers
+- **Visual Grid Configuration**: Dropdowns positioned next to their grid sections
+  - Reactor selector next to rows 1-4
+  - Aux Generator 1 selector next to rows 5-6
+  - Aux Generator 2 selector next to rows 7-8
+- **Protected Cells**: Blue cells indicate priority placement areas
+- **Component Library**: All game components organized by category with multiple tiers
 - **Component Filters**: Filter by name or number of blocks
-- **Auto-Solver**: Automatically finds optimal piece placements (prioritizes protected cells)
-- **Grid Templates**: Pre-configured engine/power layouts to quickly load
+- **Auto-Solver**: Finds optimal placements (prioritizes protected cells)
 - **Two Solve Modes**:
   - *Require All*: Must place all selected components (fails if impossible)
   - *Maximize Coverage*: Place as many components as possible
-- **Persistent State**: Grid configuration saved to localStorage
 
 ## Usage
 
-1. **Select a template** or click cells to configure powered squares
-2. **Filter components** by name or block count (optional)
-3. **Expand component groups** and set tier quantities
-4. **Click Solve**: The optimizer will find valid placements
+1. **Select a reactor** (left of grid rows 1-4) to set the top half of your grid
+2. **Optionally add aux generators** (left of rows 5-6 and 7-8)
+3. **Filter and select components** - set quantities for each tier
+4. **Click Solve** - the optimizer finds valid placements
 
 ---
 
 ## Contributing
 
-**Help improve this tool by contributing component shapes and engine layouts from the game!**
+**Help us build the component library with accurate game data!**
 
 ### Quick Links
 - [Edit Components](https://github.com/jasbanza/jump-space-power-grid-optimizer/edit/main/data/components.json)
-- [Edit Templates](https://github.com/jasbanza/jump-space-power-grid-optimizer/edit/main/data/templates.json)
+- [Edit Reactors](https://github.com/jasbanza/jump-space-power-grid-optimizer/edit/main/data/reactors.json)
+- [Edit Aux Generators](https://github.com/jasbanza/jump-space-power-grid-optimizer/edit/main/data/auxGenerators.json)
 
 ### How to Contribute
 
@@ -48,9 +50,10 @@ Edit `data/components.json`:
 
 ```json
 {
-  "myComponent": {
-    "id": "myComponent",
+  "componentId": {
+    "id": "componentId",
     "name": "Component Name",
+    "category": "CATEGORY NAME",
     "tiers": {
       "1": {
         "shape": [
@@ -64,82 +67,91 @@ Edit `data/components.json`:
           [1, 0, 0],
           [1, 1, 1]
         ]
-      },
-      "3": {
-        "shape": [
-          [1, 0, 0, 0],
-          [1, 0, 0, 0],
-          [1, 0, 0, 0],
-          [1, 1, 1, 1]
-        ]
       }
     }
   }
 }
 ```
 
-**Shape values:**
-- `1` = filled cell
-- `0` = empty cell
-- Each row is a separate array, place them on separate lines for readability
+**Categories:** SENSORS, ENGINES, PILOT CANNONS, MULTI-TURRET SYSTEMS, SPECIAL WEAPONS
 
-### Adding Engine/Power Grid Templates
+### Adding Reactors (8x4 grids)
 
-Edit `data/templates.json`:
+Edit `data/reactors.json`:
 
 ```json
 {
-  "myTemplate": {
-    "id": "myTemplate",
-    "name": "Engine Name + Aux Setup",
+  "reactorId": {
+    "id": "reactorId",
+    "name": "Reactor Name",
+    "powerGeneration": 22,
+    "protectedPower": 8,
+    "unprotectedPower": 14,
     "grid": [
       [2, 2, 0, 0, 0, 0, 2, 2],
       [1, 2, 1, 0, 0, 1, 2, 1],
       [1, 1, 1, 0, 0, 1, 1, 1],
-      [1, 1, 1, 0, 0, 1, 1, 1],
-      [0, 1, 1, 1, 1, 1, 1, 0],
-      [0, 0, 0, 0, 0, 0, 0, 0],
-      [0, 1, 1, 1, 1, 1, 1, 0],
-      [0, 0, 0, 0, 0, 0, 0, 0]
+      [1, 1, 1, 0, 0, 1, 1, 1]
     ]
   }
 }
 ```
 
-**Grid values:**
-- `0` = unpowered (black)
-- `1` = powered (green)
-- `2` = protected (light blue) - solver prioritizes these cells
+### Adding Aux Generators (8x2 grids)
 
-### What We Need
+Edit `data/auxGenerators.json`:
 
-- **All component shapes** from the game (weapons, shields, systems, etc.)
-- **Component tiers** - each upgrade tier may have a different shape
-- **Engine layouts** for different engine types
-- **Auxiliary engine combinations** that modify the power grid
+```json
+{
+  "auxId": {
+    "id": "auxId",
+    "name": "Aux Generator Name",
+    "powerGeneration": 10,
+    "protectedPower": 4,
+    "unprotectedPower": 6,
+    "grid": [
+      [0, 2, 1, 1, 1, 1, 2, 0],
+      [0, 2, 1, 1, 1, 1, 2, 0]
+    ]
+  }
+}
+```
 
-Screenshots from the game are helpful for reference!
+**Grid values:** `0` = unpowered, `1` = powered (green), `2` = protected (blue)
 
 ---
+
+## Grid Structure
+
+```
++------------------+
+|   REACTOR (8x4)  | <- Rows 1-4, selected by Reactor dropdown
++------------------+
+| AUX GEN 1 (8x2)  | <- Rows 5-6, optional
++------------------+
+| AUX GEN 2 (8x2)  | <- Rows 7-8, optional
++------------------+
+```
 
 ## Project Structure
 
 ```
-├── index.html           # Main page
+├── index.html            # Main page
 ├── css/
-│   └── styles.css       # Styling (dark theme)
+│   └── styles.css        # Styling (dark theme)
 ├── data/
-│   ├── components.json  # Component definitions (CONTRIBUTE HERE)
-│   └── templates.json   # Grid templates (CONTRIBUTE HERE)
+│   ├── components.json   # Component shapes by category/tier
+│   ├── reactors.json     # Reactor grid layouts (8x4)
+│   └── auxGenerators.json # Aux generator layouts (8x2)
 ├── js/
-│   ├── main.js          # App initialization
-│   ├── grid.js          # Grid state management
-│   ├── components.js    # Component loader & utilities
-│   ├── templates.js     # Template loader
-│   ├── solver.js        # Backtracking solver
-│   └── ui.js            # UI rendering & events
-├── CONSTRAINTS.md       # Game rules & planning notes
-└── README.md            # This file
+│   ├── main.js           # App initialization
+│   ├── grid.js           # Grid state management
+│   ├── components.js     # Component loader & utilities
+│   ├── templates.js      # Reactor/aux loader & combiner
+│   ├── solver.js         # Backtracking solver
+│   └── ui.js             # UI rendering & events
+├── GAME_RULES.md         # Game mechanics documentation
+└── README.md             # This file
 ```
 
 ## License

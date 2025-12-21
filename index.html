@@ -16,14 +16,30 @@
         <main>
             <div class="grid-section">
                 <h2>Power Grid</h2>
-                <div class="template-selector">
-                    <label for="template-select">Load Template:</label>
-                    <select id="template-select">
-                        <option value="">-- Select Template --</option>
-                    </select>
-                </div>
                 <p class="instructions">Click cells to toggle. Green = powered, Blue = protected (prioritized)</p>
-                <div id="grid-container"></div>
+                
+                <div class="grid-with-selectors">
+                    <div class="grid-selectors">
+                        <div class="selector-row reactor-selector">
+                            <select id="reactor-select" title="Reactor (rows 1-4)">
+                                <option value="">-- Reactor --</option>
+                            </select>
+                        </div>
+                        <div class="selector-row aux1-selector">
+                            <select id="aux1-select" title="Aux Generator 1 (rows 5-6)">
+                                <option value="none">-- Aux 1 --</option>
+                            </select>
+                        </div>
+                        <div class="selector-row aux2-selector">
+                            <select id="aux2-select" title="Aux Generator 2 (rows 7-8)">
+                                <option value="none">-- Aux 2 --</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="grid-container"></div>
+                </div>
+                
+                <div id="grid-stats" class="grid-stats"></div>
                 <div class="grid-controls">
                     <button id="clear-grid-btn" class="btn btn-secondary">Clear Grid</button>
                     <button id="clear-solution-btn" class="btn btn-secondary">Clear Solution</button>
@@ -57,7 +73,9 @@
             <p>
                 <a href="https://github.com/jasbanza/jump-space-power-grid-optimizer/blob/main/data/components.json" target="_blank">Add Components</a>
                 &nbsp;|&nbsp;
-                <a href="https://github.com/jasbanza/jump-space-power-grid-optimizer/blob/main/data/templates.json" target="_blank">Add Templates</a>
+                <a href="https://github.com/jasbanza/jump-space-power-grid-optimizer/blob/main/data/reactors.json" target="_blank">Add Reactors</a>
+                &nbsp;|&nbsp;
+                <a href="https://github.com/jasbanza/jump-space-power-grid-optimizer/blob/main/data/auxGenerators.json" target="_blank">Add Aux Generators</a>
                 &nbsp;|&nbsp;
                 <a href="https://github.com/jasbanza/jump-space-power-grid-optimizer" target="_blank">GitHub</a>
             </p>

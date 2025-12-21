@@ -4,12 +4,13 @@
 
 import { 
     getGridState, getGridSize, toggleCell, clearGrid, 
-    setSolution, getSolution, clearSolution, setGridFromTemplate,
-    isCellProtected
+    setSolution, getSolution, clearSolution, setGridFromTemplate
 } from './grid.js';
 import { getComponents, countCells } from './components.js';
 import { solve } from './solver.js';
-import { getTemplates, getTemplateList } from './templates.js';
+import { 
+    getReactorList, getAuxGeneratorList, combineGrid, getGridStats 
+} from './templates.js';
 
 // Track component tier quantities: Map<"componentId_tier", quantity>
 const componentQuantities = new Map();
@@ -20,6 +21,11 @@ let blocksFilter = null;
 
 // Expanded accordions
 const expandedComponents = new Set();
+
+// Current grid configuration
+let currentReactor = '';
+let currentAux1 = 'none';
+let currentAux2 = 'none';
 
 // Component colors for visualization
 const COMPONENT_COLORS = [
@@ -34,27 +40,78 @@ const COMPONENT_COLORS = [
 export function initUI() {
     renderGrid();
     renderComponents();
-    renderTemplates();
+    renderGridConfig();
     setupEventListeners();
 }
 
 /**
- * Render the template selector dropdown
+ * Render the grid configuration dropdowns (reactor + aux generators)
  */
-function renderTemplates() {
-    const select = document.getElementById('template-select');
-    const templates = getTemplateList();
+function renderGridConfig() {
+    const reactorSelect = document.getElementById('reactor-select');
+    const aux1Select = document.getElementById('aux1-select');
+    const aux2Select = document.getElementById('aux2-select');
     
-    // Clear existing options except the default
-    select.innerHTML = '<option value="">-- Select Template --</option>';
+    const reactors = getReactorList();
+    const auxGenerators = getAuxGeneratorList();
     
-    // Add templates
-    templates.forEach(template => {
+    // Populate reactor dropdown
+    reactorSelect.innerHTML = '<option value="">-- Select Reactor --</option>';
+    reactors.forEach(reactor => {
         const option = document.createElement('option');
-        option.value = template.id;
-        option.textContent = template.name;
-        select.appendChild(option);
+        option.value = reactor.id;
+        option.textContent = `${reactor.name} (${reactor.powerGeneration} power)`;
+        reactorSelect.appendChild(option);
     });
+    
+    // Populate aux generator dropdowns
+    [aux1Select, aux2Select].forEach(select => {
+        select.innerHTML = '';
+        auxGenerators.forEach(aux => {
+            const option = document.createElement('option');
+            option.value = aux.id;
+            if (aux.id === 'none') {
+                option.textContent = 'None';
+            } else {
+                option.textContent = `${aux.name} (+${aux.powerGeneration} power)`;
+            }
+            select.appendChild(option);
+        });
+    });
+    
+    updateGridStats();
+}
+
+/**
+ * Update grid stats display
+ */
+function updateGridStats() {
+    const statsEl = document.getElementById('grid-stats');
+    
+    if (!currentReactor) {
+        statsEl.textContent = 'Select a reactor to configure your power grid';
+        return;
+    }
+    
+    const stats = getGridStats(currentReactor, currentAux1, currentAux2);
+    statsEl.innerHTML = `
+        <span class="stat">Total: <strong>${stats.total}</strong></span>
+        <span class="stat protected">Protected: <strong>${stats.protected}</strong></span>
+        <span class="stat unprotected">Unprotected: <strong>${stats.unprotected}</strong></span>
+    `;
+}
+
+/**
+ * Apply current grid configuration
+ */
+function applyGridConfig() {
+    if (!currentReactor) return;
+    
+    const grid = combineGrid(currentReactor, currentAux1, currentAux2);
+    setGridFromTemplate(grid);
+    clearSolution();
+    renderGrid();
+    updateGridStats();
 }
 
 /**
@@ -119,115 +176,134 @@ function renderComponents() {
     
     container.innerHTML = '';
     
+    // Group components by category
+    const categories = {};
     for (const [componentId, component] of Object.entries(components)) {
-        // Filter by name
-        if (nameFilter && !component.name.toLowerCase().includes(nameFilter.toLowerCase())) {
-            continue;
+        const category = component.category || 'Other';
+        if (!categories[category]) {
+            categories[category] = [];
         }
+        categories[category].push({ componentId, component });
+    }
+    
+    // Render by category
+    for (const [category, items] of Object.entries(categories)) {
+        // Create category header
+        const categoryHeader = document.createElement('div');
+        categoryHeader.className = 'component-category';
+        categoryHeader.textContent = category;
+        container.appendChild(categoryHeader);
         
-        // Get matching tiers based on block filter
-        const matchingTiers = getMatchingTiers(component.tiers, blocksFilter);
-        
-        // Skip if no tiers match block filter
-        if (blocksFilter !== null && matchingTiers.length === 0) {
-            continue;
-        }
-        
-        const tiersToShow = blocksFilter !== null ? matchingTiers : Object.keys(component.tiers);
-        
-        // Check if any tier has a quantity set
-        const hasSelection = tiersToShow.some(tier => {
-            const key = `${componentId}_${tier}`;
-            return (componentQuantities.get(key) || 0) > 0;
-        });
-        
-        const isExpanded = expandedComponents.has(componentId);
-        
-        // Create accordion
-        const accordion = document.createElement('div');
-        accordion.className = 'component-accordion';
-        if (isExpanded) accordion.classList.add('expanded');
-        if (hasSelection) accordion.classList.add('has-selection');
-        accordion.dataset.componentId = componentId;
-        
-        // Header
-        const header = document.createElement('div');
-        header.className = 'component-header';
-        
-        const toggle = document.createElement('span');
-        toggle.className = 'component-toggle';
-        toggle.textContent = '▶';
-        
-        const name = document.createElement('span');
-        name.className = 'component-name';
-        name.textContent = component.name;
-        
-        const badge = document.createElement('span');
-        badge.className = 'component-badge';
-        badge.textContent = `${tiersToShow.length} tier${tiersToShow.length !== 1 ? 's' : ''}`;
-        
-        header.appendChild(toggle);
-        header.appendChild(name);
-        header.appendChild(badge);
-        
-        // Tiers container
-        const tiersContainer = document.createElement('div');
-        tiersContainer.className = 'component-tiers';
-        
-        for (const tier of tiersToShow) {
-            const tierData = component.tiers[tier];
-            const shape = tierData.shape;
-            const blockCount = countCells(shape);
-            const key = `${componentId}_${tier}`;
-            
-            const tierItem = document.createElement('div');
-            tierItem.className = 'tier-item';
-            
-            const tierLabel = document.createElement('span');
-            tierLabel.className = 'tier-label';
-            tierLabel.textContent = `T${tier}`;
-            
-            const quantityInput = document.createElement('input');
-            quantityInput.type = 'number';
-            quantityInput.className = 'tier-quantity';
-            quantityInput.min = '0';
-            quantityInput.max = '10';
-            quantityInput.value = componentQuantities.get(key) || 0;
-            quantityInput.dataset.componentId = componentId;
-            quantityInput.dataset.tier = tier;
-            
-            const preview = createShapePreview(shape);
-            
-            const blocks = document.createElement('span');
-            blocks.className = 'tier-blocks';
-            blocks.textContent = `${blockCount} block${blockCount !== 1 ? 's' : ''}`;
-            
-            tierItem.appendChild(tierLabel);
-            tierItem.appendChild(quantityInput);
-            tierItem.appendChild(preview);
-            tierItem.appendChild(blocks);
-            
-            // Quantity change handlers
-            quantityInput.addEventListener('change', handleQuantityChange);
-            quantityInput.addEventListener('input', handleQuantityChange);
-            
-            tiersContainer.appendChild(tierItem);
-        }
-        
-        accordion.appendChild(header);
-        accordion.appendChild(tiersContainer);
-        
-        // Toggle accordion on header click
-        header.addEventListener('click', () => {
-            if (expandedComponents.has(componentId)) {
-                expandedComponents.delete(componentId);
-            } else {
-                expandedComponents.add(componentId);
+        for (const { componentId, component } of items) {
+            // Filter by name
+            if (nameFilter && !component.name.toLowerCase().includes(nameFilter.toLowerCase())) {
+                continue;
             }
-            renderComponents();
-        });
-        
-        container.appendChild(accordion);
+            
+            // Get matching tiers based on block filter
+            const matchingTiers = getMatchingTiers(component.tiers, blocksFilter);
+            
+            // Skip if no tiers match block filter
+            if (blocksFilter !== null && matchingTiers.length === 0) {
+                continue;
+            }
+            
+            const tiersToShow = blocksFilter !== null ? matchingTiers : Object.keys(component.tiers);
+            
+            // Check if any tier has a quantity set
+            const hasSelection = tiersToShow.some(tier => {
+                const key = `${componentId}_${tier}`;
+                return (componentQuantities.get(key) || 0) > 0;
+            });
+            
+            const isExpanded = expandedComponents.has(componentId);
+            
+            // Create accordion
+            const accordion = document.createElement('div');
+            accordion.className = 'component-accordion';
+            if (isExpanded) accordion.classList.add('expanded');
+            if (hasSelection) accordion.classList.add('has-selection');
+            accordion.dataset.componentId = componentId;
+            
+            // Header
+            const header = document.createElement('div');
+            header.className = 'component-header';
+            
+            const toggle = document.createElement('span');
+            toggle.className = 'component-toggle';
+            toggle.textContent = '▶';
+            
+            const name = document.createElement('span');
+            name.className = 'component-name';
+            name.textContent = component.name;
+            
+            const badge = document.createElement('span');
+            badge.className = 'component-badge';
+            badge.textContent = `${tiersToShow.length} tier${tiersToShow.length !== 1 ? 's' : ''}`;
+            
+            header.appendChild(toggle);
+            header.appendChild(name);
+            header.appendChild(badge);
+            
+            // Tiers container
+            const tiersContainer = document.createElement('div');
+            tiersContainer.className = 'component-tiers';
+            
+            for (const tier of tiersToShow) {
+                const tierData = component.tiers[tier];
+                const shape = tierData.shape;
+                const blockCount = countCells(shape);
+                const key = `${componentId}_${tier}`;
+                
+                const tierItem = document.createElement('div');
+                tierItem.className = 'tier-item';
+                
+                const tierLabel = document.createElement('span');
+                tierLabel.className = 'tier-label';
+                tierLabel.textContent = `Mk${tier}`;
+                
+                const quantityInput = document.createElement('input');
+                quantityInput.type = 'number';
+                quantityInput.className = 'tier-quantity';
+                quantityInput.min = '0';
+                quantityInput.max = '10';
+                quantityInput.value = componentQuantities.get(key) || 0;
+                quantityInput.dataset.componentId = componentId;
+                quantityInput.dataset.tier = tier;
+                
+                const preview = createShapePreview(shape);
+                
+                const blocks = document.createElement('span');
+                blocks.className = 'tier-blocks';
+                blocks.textContent = `${blockCount} block${blockCount !== 1 ? 's' : ''}`;
+                
+                tierItem.appendChild(tierLabel);
+                tierItem.appendChild(quantityInput);
+                tierItem.appendChild(preview);
+                tierItem.appendChild(blocks);
+                
+                // Quantity change handlers
+                quantityInput.addEventListener('change', handleQuantityChange);
+                quantityInput.addEventListener('input', handleQuantityChange);
+                
+                tiersContainer.appendChild(tierItem);
+            }
+            
+            accordion.appendChild(header);
+            accordion.appendChild(tiersContainer);
+            
+            // Toggle accordion on header click
+            header.addEventListener('click', () => {
+                if (expandedComponents.has(componentId)) {
+                    expandedComponents.delete(componentId);
+                } else {
+                    expandedComponents.add(componentId);
+                }
+                renderComponents();
+            });
+            
+            container.appendChild(accordion);
+        }
     }
 }
 
@@ -319,8 +395,8 @@ function getSelectedComponents() {
             for (let i = 0; i < quantity; i++) {
                 selected.push({
                     id: `${componentId}_${tier}_${i}`,
-                    name: `${component.name} T${tier}`,
-                    componentName: `${component.name} T${tier}`,
+                    name: `${component.name} Mk${tier}`,
+                    componentName: `${component.name} Mk${tier}`,
                     shape: component.tiers[tier].shape,
                     instanceId: `${componentId}_${tier}_${i}`
                 });
@@ -347,15 +423,22 @@ function setupEventListeners() {
         }
     });
     
-    // Template selector
-    document.getElementById('template-select').addEventListener('change', (e) => {
-        const templateId = e.target.value;
-        const templates = getTemplates();
-        if (templateId && templates[templateId]) {
-            setGridFromTemplate(templates[templateId].grid);
-            clearSolution();
-            renderGrid();
-        }
+    // Reactor selector
+    document.getElementById('reactor-select').addEventListener('change', (e) => {
+        currentReactor = e.target.value;
+        applyGridConfig();
+    });
+    
+    // Aux generator 1 selector
+    document.getElementById('aux1-select').addEventListener('change', (e) => {
+        currentAux1 = e.target.value;
+        applyGridConfig();
+    });
+    
+    // Aux generator 2 selector
+    document.getElementById('aux2-select').addEventListener('change', (e) => {
+        currentAux2 = e.target.value;
+        applyGridConfig();
     });
     
     // Filter inputs
@@ -373,7 +456,14 @@ function setupEventListeners() {
     document.getElementById('clear-grid-btn').addEventListener('click', () => {
         clearGrid();
         clearSolution();
+        currentReactor = '';
+        currentAux1 = 'none';
+        currentAux2 = 'none';
+        document.getElementById('reactor-select').value = '';
+        document.getElementById('aux1-select').value = 'none';
+        document.getElementById('aux2-select').value = 'none';
         renderGrid();
+        updateGridStats();
         updateStatus('Grid cleared', 'info');
     });
     

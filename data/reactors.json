@@ -1,0 +1,54 @@
+{
+  "splitReactor": {
+    "id": "splitReactor",
+    "name": "Split Reactor",
+    "powerGeneration": 22,
+    "protectedPower": 8,
+    "unprotectedPower": 14,
+    "grid": [
+      [2, 2, 0, 0, 0, 0, 2, 2],
+      [1, 2, 1, 0, 0, 1, 2, 1],
+      [1, 1, 1, 0, 0, 1, 1, 1],
+      [1, 1, 1, 0, 0, 1, 1, 1]
+    ]
+  },
+  "solidStateReactor": {
+    "id": "solidStateReactor",
+    "name": "Solid State Reactor",
+    "powerGeneration": 16,
+    "protectedPower": 16,
+    "unprotectedPower": 0,
+    "grid": [
+      [0, 0, 2, 2, 2, 2, 0, 0],
+      [0, 0, 2, 2, 2, 2, 0, 0],
+      [0, 0, 2, 2, 2, 2, 0, 0],
+      [0, 0, 2, 2, 2, 2, 0, 0]
+    ]
+  },
+  "materiaScatterReactor": {
+    "id": "materiaScatterReactor",
+    "name": "Materia Scatter Reactor",
+    "powerGeneration": 24,
+    "protectedPower": 8,
+    "unprotectedPower": 16,
+    "grid": [
+      [1, 2, 1, 1, 1, 1, 2, 1],
+      [1, 1, 1, 1, 1, 1, 1, 1],
+      [2, 1, 1, 0, 0, 1, 1, 2],
+      [2, 1, 1, 0, 0, 1, 1, 2]
+    ]
+  },
+  "nullWaveReactor": {
+    "id": "nullWaveReactor",
+    "name": "Null Wave Reactor",
+    "powerGeneration": 20,
+    "protectedPower": 10,
+    "unprotectedPower": 10,
+    "grid": [
+      [2, 2, 1, 0, 0, 1, 2, 2],
+      [2, 1, 1, 0, 0, 1, 1, 2],
+      [1, 1, 1, 0, 0, 1, 1, 1],
+      [1, 1, 0, 0, 0, 0, 1, 1]
+    ]
+  }
+}
