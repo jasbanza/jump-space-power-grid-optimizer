@@ -17,12 +17,11 @@ A web-based tool to optimize component placement on your ship's power grid in Ju
 
 ### Build Order & Priority System
 - **Priority List**: Drag-and-drop to reorder component placement priority
-- **Mandatory Components**: Check 🔒 to mark components as required (must be placed)
-- **Shield Priority**: Check 🛡️ to prioritize protected (blue) cells for that component
 - **Visual Feedback**: 
-  - Red highlight for components that couldn't be placed
+  - ✅ Green border: Successfully placed
+  - ❌ Red border: Could not be placed
+  - 🔵 Blue border: Component is placed on at least one protected (blue) cell
   - Yellow highlight on hover (bidirectional between grid and list)
-  - Blue border on components with shield priority enabled
 
 ### Component Library
 - **Collapsible Categories**: Organized by type (Sensors, Engines, Weapons, etc.)
@@ -31,59 +30,41 @@ A web-based tool to optimize component placement on your ship's power grid in Ju
 
 ### Smart Solver
 - **Priority-Based Placement**: Respects your build order
-- **Mandatory First**: Uses backtracking to fit all mandatory components
+- **Backtracking Algorithm**: Tries to place ALL components, falls back to partial placement if needed
 - **Protected Cell Priority**: All components prefer protected (blue) cells when possible
-- **Shield Priority (🛡️)**: Components with shield checked get visual indicator and are prioritized for protected cells based on build order
 - **Semi-Transparent Overlays**: See power cells beneath placed components
 
 ---
 
 ## Solver Algorithm
 
-The solver uses a multi-stage approach to maximize component placement while respecting constraints.
+The solver uses a multi-stage approach to maximize component placement while respecting priority order.
 
 ### Flowchart
 
 ```mermaid
 flowchart TD
-    START([START: Solve]) --> SEPARATE[Separate pieces:<br/>• Mandatory 🔒<br/>• Optional]
+    START([START: Solve]) --> CHECK{≤8 pieces?}
     
-    SEPARATE --> CHECK{No mandatory<br/>AND ≤8 pieces?}
-    
-    CHECK -->|Yes| PHASE1[Phase 1:<br/>backtrackMandatory<br/>treat ALL as mandatory]
-    CHECK -->|No| MANDATORY[backtrackMandatory<br/>on mandatory pieces]
+    CHECK -->|Yes| PHASE1[Phase 1: backtrackStrict<br/>try ALL pieces, no skipping]
+    CHECK -->|No| GREEDY[Greedy placement<br/>in priority order]
     
     PHASE1 --> ALL_PLACED{All placed?}
     
     ALL_PLACED -->|Yes| DONE[✅ Return solution]
-    ALL_PLACED -->|No| PHASE2[Phase 2:<br/>backtrackAll<br/>allows skipping]
+    ALL_PLACED -->|No| PHASE2[Phase 2: backtrackAllowSkip<br/>maximize placements]
     
     PHASE2 --> FOUND{Found solution?}
     FOUND -->|Yes| DONE
-    FOUND -->|No| GREEDY1[Greedy fallback]
-    GREEDY1 --> DONE
+    FOUND -->|No| GREEDY
     
-    MANDATORY --> MAND_OK{All mandatory<br/>placed?}
-    MAND_OK -->|Yes| OPT_PHASE1[Try backtrackMandatory<br/>on optional pieces]
-    MAND_OK -->|No| GREEDY2[Greedy fallback<br/>for mandatory]
-    GREEDY2 --> OPT_PHASE1
-    
-    OPT_PHASE1 --> OPT_ALL{All optional<br/>placed?}
-    OPT_ALL -->|Yes| DONE
-    OPT_ALL -->|No| OPT_PHASE2[backtrackAll<br/>allows skipping]
-    
-    OPT_PHASE2 --> OPT_OK{Found solution?}
-    OPT_OK -->|Yes| DONE
-    OPT_OK -->|No| GREEDY3[Greedy fallback<br/>for optional]
-    GREEDY3 --> DONE
+    GREEDY --> DONE
 
     style START fill:#2d5a27
     style DONE fill:#2d5a27
     style PHASE1 fill:#1a4a6e
     style PHASE2 fill:#4a3a1e
-    style GREEDY1 fill:#5a2a2a
-    style GREEDY2 fill:#5a2a2a
-    style GREEDY3 fill:#5a2a2a
+    style GREEDY fill:#5a2a2a
 ```
 
 ### Algorithm Details
@@ -94,27 +75,19 @@ The solver uses **backtracking** to find valid configurations:
 
 | Function | Purpose | Skipping Allowed? |
 |----------|---------|-------------------|
-| `backtrackMandatory()` | Place all pieces (no skipping) | ❌ No |
-| `backtrackAll()` | Place pieces, skip if needed | ✅ Yes (non-mandatory) |
+| `backtrackStrict()` | Place all pieces (no skipping) | ❌ No |
+| `backtrackAllowSkip()` | Place pieces, skip if needed | ✅ Yes |
 
 #### 2. Placement Priority
 
 For each piece, valid placements are sorted by:
-1. **Protected cell coverage** (highest first) - ALL components prefer blue cells
-2. Components with 🛡️ checked get a visual indicator showing they have shield priority
+- **Protected cell coverage** (highest first) - ALL components prefer blue cells
 
-#### 3. Two-Phase Approach
+#### 3. Three-Phase Approach
 
-The solver always tries to place ALL pieces before allowing any to be skipped:
-
-**When NO mandatory pieces (and ≤8 total):**
-1. Try `backtrackMandatory()` on ALL pieces (no skipping)
-2. If fails → `backtrackAll()` (allows skipping)
-
-**When SOME mandatory pieces:**
-1. Place mandatory pieces with `backtrackMandatory()` 
-2. Try `backtrackMandatory()` on optional pieces (no skipping)
-3. If fails → `backtrackAll()` for optional (allows skipping)
+1. **Phase 1**: Try to place ALL pieces using `backtrackStrict()` (no skipping)
+2. **Phase 2**: If Phase 1 fails, use `backtrackAllowSkip()` to maximize placements
+3. **Fallback**: If backtracking times out, use greedy placement in priority order
 
 This ensures the solver **always tries to place everything first** before giving up on any piece.
 
@@ -123,7 +96,7 @@ This ensures the solver **always tries to place everything first** before giving
 | Limit | Value | Purpose |
 |-------|-------|---------|
 | `MAX_BACKTRACK_ITERATIONS` | 50,000 | Prevents browser freeze |
-| `MAX_MANDATORY_PIECES` | 8 | Limits exponential blowup |
+| `MAX_PIECES_FOR_BACKTRACK` | 8 | Limits exponential blowup |
 | Placements per piece | 15-20 | Reduces search space |
 
 #### 5. Visual Indicators
@@ -131,7 +104,7 @@ This ensures the solver **always tries to place everything first** before giving
 After solving:
 - ✅ **Green border**: Successfully placed
 - ❌ **Red border**: Could not be placed  
-- 🔵 **Blue border**: Component has shield priority (🛡️ checkbox enabled) - prioritizes protected cells
+- 🔵 **Blue border**: Component is placed on at least one protected (blue) cell
 
 ## Usage
 
@@ -145,8 +118,7 @@ After solving:
 
 3. **Organize priority**
    - Drag components to reorder placement priority
-   - Check 🔒 for mandatory components (must be placed)
-   - Check 🛡️ to mark components for shield priority (prefers protected cells)
+   - Higher priority items are placed first
 
 4. **Solve**
    - Click Solve - the optimizer places components in priority order
@@ -294,7 +266,7 @@ Edit `data/auxGenerators.json` - now supports tiers:
 │   ├── grid.js           # Grid state management
 │   ├── components.js     # Component loader & utilities
 │   ├── templates.js      # Reactor/aux loader with tier support
-│   ├── solver.js         # Priority-based solver with mandatory support
+│   ├── solver.js         # Priority-based backtracking solver
 │   └── ui.js             # UI rendering, drag-drop, hover sync
 ├── GAME_RULES.md         # Game mechanics documentation
 └── README.md             # This file

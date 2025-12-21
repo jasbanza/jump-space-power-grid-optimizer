@@ -15,7 +15,7 @@ import {
 // Track component tier quantities: Map<"componentId_tier", quantity>
 const componentQuantities = new Map();
 
-// Priority list: Array of {id, componentId, tier, mandatory, protect}
+// Priority list: Array of {id, componentId, tier}
 let priorityList = [];
 let priorityIdCounter = 0;
 
@@ -415,21 +415,19 @@ export function renderGrid() {
     const placedCellsMap = new Map();
     const componentBounds = new Map(); // Track bounding boxes for labels
     
+    // Track which components have at least one protected cell
+    const componentsOnProtected = new Set();
+    
     solution.forEach((placement) => {
         const priorityId = placement.priorityId;
         let minRow = Infinity, maxRow = -1, minCol = Infinity, maxCol = -1;
-        
-        // Look up protect status from priority list
-        const priorityItem = priorityList.find(p => p.id === priorityId);
-        const isProtected = priorityItem ? priorityItem.protect : false;
+        let hasProtectedCell = false;
         
         for (const cell of placement.cells) {
-            const key = `${cell.row},${cell.col}`;
-            placedCellsMap.set(key, {
-                priorityId: priorityId,
-                componentName: placement.componentName || placement.pieceName,
-                protect: isProtected
-            });
+            // Check if this cell is on a protected (blue) square
+            if (gridState[cell.row][cell.col] === 2) {
+                hasProtectedCell = true;
+            }
             
             minRow = Math.min(minRow, cell.row);
             maxRow = Math.max(maxRow, cell.row);
@@ -437,11 +435,29 @@ export function renderGrid() {
             maxCol = Math.max(maxCol, cell.col);
         }
         
+        // Track which components have protected cells
+        if (hasProtectedCell) {
+            componentsOnProtected.add(priorityId);
+        }
+        
+        for (const cell of placement.cells) {
+            const key = `${cell.row},${cell.col}`;
+            placedCellsMap.set(key, {
+                priorityId: priorityId,
+                componentName: placement.componentName || placement.pieceName,
+                hasProtectedCell: hasProtectedCell
+            });
+        }
+        
         componentBounds.set(priorityId, {
             minRow, maxRow, minCol, maxCol,
-            name: placement.componentName || placement.pieceName
+            name: placement.componentName || placement.pieceName,
+            hasProtectedCell: hasProtectedCell
         });
     });
+    
+    // Store for use by priority list rendering
+    window._componentsOnProtected = componentsOnProtected;
     
     container.innerHTML = '';
     
@@ -471,8 +487,8 @@ export function renderGrid() {
                 overlay.dataset.priorityId = componentInfo.priorityId;
                 overlay.title = componentInfo.componentName;
                 
-                // Add protected class if component is marked as protected
-                if (componentInfo.protect) {
+                // Add protected class if component has at least one cell on a protected (blue) square
+                if (componentInfo.hasProtectedCell) {
                     overlay.classList.add('protected-component');
                 }
                 
@@ -579,7 +595,8 @@ function renderPriorityList() {
         
         if (isPlaced) {
             div.classList.add('placed');
-            if (item.protect) {
+            // Only show blue border if component has at least one cell on a protected (blue) square
+            if (window._componentsOnProtected && window._componentsOnProtected.has(item.id)) {
                 div.classList.add('protected-placed');
             }
         } else if (placedPriorityIds.size > 0) {
@@ -611,43 +628,6 @@ function renderPriorityList() {
         info.appendChild(name);
         info.appendChild(tier);
         
-        // Checkbox container for Must and Protect
-        const checkboxContainer = document.createElement('div');
-        checkboxContainer.className = 'priority-checkboxes';
-        
-        // Mandatory checkbox
-        const mandatory = document.createElement('label');
-        mandatory.className = 'priority-checkbox';
-        
-        const mandatoryCheckbox = document.createElement('input');
-        mandatoryCheckbox.type = 'checkbox';
-        mandatoryCheckbox.checked = item.mandatory;
-        mandatoryCheckbox.addEventListener('change', (e) => {
-            item.mandatory = e.target.checked;
-            savePriorityList();
-        });
-        
-        mandatory.appendChild(mandatoryCheckbox);
-        mandatory.appendChild(document.createTextNode('🔒'));
-        
-        // Protect checkbox
-        const protect = document.createElement('label');
-        protect.className = 'priority-checkbox';
-        
-        const protectCheckbox = document.createElement('input');
-        protectCheckbox.type = 'checkbox';
-        protectCheckbox.checked = item.protect || false;
-        protectCheckbox.addEventListener('change', (e) => {
-            item.protect = e.target.checked;
-            savePriorityList();
-        });
-        
-        protect.appendChild(protectCheckbox);
-        protect.appendChild(document.createTextNode('🛡️'));
-        
-        checkboxContainer.appendChild(mandatory);
-        checkboxContainer.appendChild(protect);
-        
         // Remove button
         const remove = document.createElement('button');
         remove.className = 'priority-remove';
@@ -659,7 +639,6 @@ function renderPriorityList() {
         div.appendChild(handle);
         div.appendChild(preview);
         div.appendChild(info);
-        div.appendChild(checkboxContainer);
         div.appendChild(remove);
         
         // Drag events
@@ -855,9 +834,7 @@ function syncPriorityList(componentId, tier, newQty) {
             priorityList.push({
                 id: `priority-${priorityIdCounter++}`,
                 componentId,
-                tier,
-                mandatory: false,
-                protect: false
+                tier
             });
         }
     } else if (newQty < currentCount) {
@@ -1223,9 +1200,7 @@ function getSelectedComponentsFromPriority() {
             priorityId: item.id,
             name: `${component.name} Mk ${item.tier}`,
             componentName: `${component.name} Mk ${item.tier}`,
-            shape: component.tiers[item.tier].shape,
-            mandatory: item.mandatory,
-            protect: item.protect || false
+            shape: component.tiers[item.tier].shape
         });
     }
     

@@ -78,37 +78,23 @@ When you add components to your build, they appear in a **priority list**:
 - **Lower priority** items may be skipped if space runs out
 - Drag and drop to reorder priorities
 
-### Mandatory Components
-Mark components as **mandatory** ("Must" checkbox) to indicate "must have":
-- The solver uses backtracking to ensure all mandatory components fit
-- Non-mandatory components are placed greedily after mandatory ones
-- If mandatory components can't all fit, they're highlighted in red
-
-### Shield Priority Components
-Mark components with **shield priority** (🛡️ checkbox) to prioritize protected cells:
-- The component will be **prioritized** for placement on protected (blue) cells
-- Does NOT restrict placement - component can still be placed on green cells if needed
-- Useful for marking critical components that should get protected power slots first
-- When multiple components have 🛡️ checked, they share protected cells based on build order
-
 ### Individual Instances
 Each component instance is tracked separately:
 - If you add "Fragment Cannon Mk 2 x3", three separate items appear
-- Each can have different priority
-- Each can be marked mandatory independently
+- Each can have different priority positions
 
 ## Solver Behavior
 
 ### Priority-Based Algorithm
 The solver respects your build order:
 
-1. **Mandatory Components First**
-   - Uses backtracking to find a valid arrangement for all mandatory components
-   - Prioritizes placements that cover protected (blue) cells
+1. **Try to Place ALL Components**
+   - Uses backtracking to find an arrangement where all components fit
+   - Components are placed in priority order (top to bottom)
 
-2. **Non-Mandatory Components**
-   - Placed greedily in priority order (top to bottom)
-   - Skipped if they don't fit
+2. **Fall Back to Partial Placement**
+   - If not all components fit, the solver maximizes how many can be placed
+   - Lower priority items may be skipped
 
 3. **Protected Cell Priority**
    - Within each placement decision, protected cells are preferred
@@ -120,6 +106,7 @@ The solver respects your build order:
 - **Bidirectional hover**: Hover a placed shape on the grid OR its list entry for yellow highlighting
 - **Shape outlines**: Only outer borders shown (internal adjacent blocks share edges)
 - **Not placed**: Items that couldn't fit are highlighted red in the list
+- **Blue border**: Component is placed on at least one protected (blue) cell
 
 ## Contributing Data
 

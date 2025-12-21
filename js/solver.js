@@ -8,15 +8,15 @@
  * 
  * Priority-based solving:
  * - Components are placed in priority order (as defined by user)
- * - Mandatory components are attempted first
- * - If a component doesn't fit, it's skipped (tracked as not placed)
+ * - The solver tries to place ALL components first (no skipping)
+ * - If not all fit, it allows skipping to maximize placements
  */
 
 import { getAllRotations, getOccupiedCells, countCells } from './components.js';
 
 // Solver limits to prevent freezing
 const MAX_BACKTRACK_ITERATIONS = 50000;
-const MAX_MANDATORY_PIECES = 8; // Hard limit on mandatory pieces to prevent exponential blowup
+const MAX_PIECES_FOR_BACKTRACK = 8; // Hard limit on pieces for backtracking to prevent exponential blowup
 
 /**
  * Check if a cell is powered (value 1 or 2)
@@ -93,7 +93,7 @@ function removePiece(placedKeys, occupiedCells) {
 
 /**
  * Get all valid placements for a piece, sorted by protected cell coverage (descending)
- * Components with protect=true get prioritized via this sorting - they're not restricted to protected cells
+ * All components naturally prefer protected cells (blue squares)
  */
 function getValidPlacements(piece, gridState, occupiedCells, gridSize) {
     const placements = [];
@@ -128,9 +128,7 @@ function getValidPlacements(piece, gridState, occupiedCells, gridSize) {
 }
 
 /**
- * Try to place a single piece, return placement or null
- * Note: protect flag means "prioritize protected cells" not "restrict to protected cells"
- * Prioritization is handled by sorting placements by protected cell count
+ * Try to place a single piece greedily, return placement or null
  */
 function tryPlacePiece(piece, gridState, occupiedCells, gridSize) {
     const validPlacements = getValidPlacements(piece, gridState, occupiedCells, gridSize);
@@ -158,31 +156,27 @@ function tryPlacePiece(piece, gridState, occupiedCells, gridSize) {
 }
 
 /**
- * Try backtracking to fit mandatory pieces
- * Attempts to find a configuration where all mandatory pieces can fit
- * Uses iteration counter to prevent infinite loops
+ * Backtracking to place ALL pieces (no skipping allowed)
+ * Returns solution array if all pieces placed, null otherwise
  */
-function backtrackMandatory(mandatoryPieces, pieceIndex, gridState, occupiedCells, gridSize, placements, iterationCounter) {
-    // Check iteration limit
+function backtrackStrict(pieces, pieceIndex, gridState, occupiedCells, gridSize, placements, iterationCounter) {
     iterationCounter.count++;
     if (iterationCounter.count > MAX_BACKTRACK_ITERATIONS) {
         iterationCounter.exceeded = true;
         return null;
     }
     
-    if (pieceIndex >= mandatoryPieces.length) {
+    if (pieceIndex >= pieces.length) {
         return [...placements];
     }
     
-    const piece = mandatoryPieces[pieceIndex];
-    // protect flag = prioritize protected cells (handled by sorting), not restrict to them
+    const piece = pieces[pieceIndex];
     const validPlacements = getValidPlacements(piece, gridState, occupiedCells, gridSize);
     
     // Limit placements to try (reduce search space)
     const placementsToTry = validPlacements.slice(0, 20);
     
     for (const placement of placementsToTry) {
-        // Check iteration limit before each placement attempt
         if (iterationCounter.count > MAX_BACKTRACK_ITERATIONS) {
             iterationCounter.exceeded = true;
             return null;
@@ -202,8 +196,8 @@ function backtrackMandatory(mandatoryPieces, pieceIndex, gridState, occupiedCell
             placedKeys
         });
         
-        const result = backtrackMandatory(
-            mandatoryPieces, pieceIndex + 1, gridState, occupiedCells, gridSize, placements, iterationCounter
+        const result = backtrackStrict(
+            pieces, pieceIndex + 1, gridState, occupiedCells, gridSize, placements, iterationCounter
         );
         
         if (result !== null) {
@@ -218,9 +212,10 @@ function backtrackMandatory(mandatoryPieces, pieceIndex, gridState, occupiedCell
 }
 
 /**
- * Backtrack to place all pieces (used when no mandatory pieces or for better solutions)
+ * Backtracking that allows skipping pieces that don't fit
+ * Maximizes number of pieces placed
  */
-function backtrackAll(pieces, pieceIndex, gridState, occupiedCells, gridSize, placements, iterationCounter) {
+function backtrackAllowSkip(pieces, pieceIndex, gridState, occupiedCells, gridSize, placements, iterationCounter) {
     iterationCounter.count++;
     if (iterationCounter.count > MAX_BACKTRACK_ITERATIONS) {
         iterationCounter.exceeded = true;
@@ -232,7 +227,6 @@ function backtrackAll(pieces, pieceIndex, gridState, occupiedCells, gridSize, pl
     }
     
     const piece = pieces[pieceIndex];
-    // protect flag = prioritize protected cells (handled by sorting), not restrict to them
     const validPlacements = getValidPlacements(piece, gridState, occupiedCells, gridSize);
     
     // Limit placements to try
@@ -258,7 +252,7 @@ function backtrackAll(pieces, pieceIndex, gridState, occupiedCells, gridSize, pl
             placedKeys
         });
         
-        const result = backtrackAll(
+        const result = backtrackAllowSkip(
             pieces, pieceIndex + 1, gridState, occupiedCells, gridSize, placements, iterationCounter
         );
         
@@ -270,24 +264,19 @@ function backtrackAll(pieces, pieceIndex, gridState, occupiedCells, gridSize, pl
         placements.pop();
     }
     
-    // If this piece can't be placed, try skipping it (for non-mandatory)
-    if (!piece.mandatory) {
-        return backtrackAll(
-            pieces, pieceIndex + 1, gridState, occupiedCells, gridSize, placements, iterationCounter
-        );
-    }
-    
-    return null;
+    // If this piece can't be placed, skip it and continue
+    return backtrackAllowSkip(
+        pieces, pieceIndex + 1, gridState, occupiedCells, gridSize, placements, iterationCounter
+    );
 }
 
 /**
  * Main solve function - priority-based solving
  * 
  * Algorithm:
- * 1. Separate mandatory and non-mandatory pieces
- * 2. Use backtracking to place all mandatory pieces first
- * 3. Use backtracking for remaining pieces to maximize placements
- * 4. Track which pieces were placed and which weren't
+ * 1. Try to place ALL pieces using backtracking (no skipping)
+ * 2. If that fails, allow skipping to maximize placements
+ * 3. Fall back to greedy if backtracking times out
  */
 export function solve(selectedPieces, gridState, gridSize) {
     if (selectedPieces.length === 0) {
@@ -319,38 +308,31 @@ export function solve(selectedPieces, gridState, gridSize) {
         };
     }
     
-    // Separate mandatory and non-mandatory pieces, maintaining priority order
-    const mandatoryPieces = selectedPieces.filter(p => p.mandatory);
-    const optionalPieces = selectedPieces.filter(p => !p.mandatory);
-    
     const occupiedCells = new Set();
     let solution = [];
-    let mandatoryFailed = false;
     let timeoutWarning = '';
     
-    // Check for too many pieces for backtracking
     const totalPieces = selectedPieces.length;
-    const useFullBacktrack = totalPieces <= MAX_MANDATORY_PIECES;
+    const useBacktrack = totalPieces <= MAX_PIECES_FOR_BACKTRACK;
     
-    // If few enough pieces, try to place ALL of them using backtracking
-    if (useFullBacktrack && mandatoryPieces.length === 0) {
+    if (useBacktrack) {
         const iterationCounter = { count: 0, exceeded: false };
         
-        // First try: place ALL pieces (treat as mandatory - no skipping allowed)
-        const fullSolution = backtrackMandatory(
+        // Phase 1: Try to place ALL pieces (no skipping)
+        const fullSolution = backtrackStrict(
             selectedPieces, 0, gridState, occupiedCells, gridSize, [], iterationCounter
         );
         
         if (fullSolution !== null) {
-            // All pieces placed successfully
+            // All pieces placed successfully!
             solution = fullSolution;
         } else {
-            // Fallback: allow skipping with backtrackAll
+            // Phase 2: Allow skipping to maximize placements
             occupiedCells.clear();
             iterationCounter.count = 0;
             iterationCounter.exceeded = false;
             
-            const partialSolution = backtrackAll(
+            const partialSolution = backtrackAllowSkip(
                 selectedPieces, 0, gridState, occupiedCells, gridSize, [], iterationCounter
             );
             
@@ -361,7 +343,7 @@ export function solve(selectedPieces, gridState, gridSize) {
             if (partialSolution !== null) {
                 solution = partialSolution;
             } else {
-                // Fall back to greedy
+                // Phase 3: Fall back to greedy
                 occupiedCells.clear();
                 for (const piece of selectedPieces) {
                     const placement = tryPlacePiece(piece, gridState, occupiedCells, gridSize);
@@ -372,93 +354,15 @@ export function solve(selectedPieces, gridState, gridSize) {
             }
         }
     } else {
-        // Original logic: mandatory first, then optional
-        
-        // Check for too many mandatory pieces
-        if (mandatoryPieces.length > MAX_MANDATORY_PIECES) {
-            return {
-                success: false,
-                solution: [],
-                message: `Too many mandatory components (${mandatoryPieces.length}). Maximum is ${MAX_MANDATORY_PIECES}. Reduce mandatory items or uncheck some.`
-            };
-        }
-        
-        // Step 1: Try to place all mandatory pieces using backtracking
-        if (mandatoryPieces.length > 0) {
-            const iterationCounter = { count: 0, exceeded: false };
-            
-            const mandatorySolution = backtrackMandatory(
-                mandatoryPieces, 0, gridState, occupiedCells, gridSize, [], iterationCounter
-            );
-            
-            if (iterationCounter.exceeded) {
-                timeoutWarning = ' (search limit reached - try fewer mandatory items)';
-            }
-            
-            if (mandatorySolution === null) {
-                // Could not fit all mandatory pieces
-                mandatoryFailed = true;
-                
-                // Fall back to greedy for mandatory pieces
-                for (const piece of mandatoryPieces) {
-                    const placement = tryPlacePiece(piece, gridState, occupiedCells, gridSize);
-                    if (placement) {
-                        solution.push(placement);
-                    }
-                }
-            } else {
-                solution = mandatorySolution;
+        // Too many pieces for backtracking, use greedy
+        for (const piece of selectedPieces) {
+            const placement = tryPlacePiece(piece, gridState, occupiedCells, gridSize);
+            if (placement) {
+                solution.push(placement);
             }
         }
-        
-        // Step 2: Try to place ALL optional pieces (no skipping first, then allow skipping)
-        if (optionalPieces.length > 0 && optionalPieces.length <= MAX_MANDATORY_PIECES) {
-            const iterationCounter = { count: 0, exceeded: false };
-            
-            // First try: place ALL optional pieces (no skipping)
-            const fullOptionalSolution = backtrackMandatory(
-                optionalPieces, 0, gridState, occupiedCells, gridSize, [], iterationCounter
-            );
-            
-            if (fullOptionalSolution !== null) {
-                // All optional pieces placed!
-                solution = solution.concat(fullOptionalSolution);
-            } else {
-                // Fallback: allow skipping with backtrackAll
-                occupiedCells.clear();
-                // Re-place mandatory pieces first
-                for (const p of solution) {
-                    for (const cell of p.cells) {
-                        occupiedCells.add(`${cell.row},${cell.col}`);
-                    }
-                }
-                iterationCounter.count = 0;
-                iterationCounter.exceeded = false;
-                
-                const partialOptionalSolution = backtrackAll(
-                    optionalPieces, 0, gridState, occupiedCells, gridSize, [], iterationCounter
-                );
-                
-                if (partialOptionalSolution !== null) {
-                    solution = solution.concat(partialOptionalSolution);
-                } else {
-                    // Fall back to greedy for optional pieces
-                    for (const piece of optionalPieces) {
-                        const placement = tryPlacePiece(piece, gridState, occupiedCells, gridSize);
-                        if (placement) {
-                            solution.push(placement);
-                        }
-                    }
-                }
-            }
-        } else if (optionalPieces.length > 0) {
-            // Too many optional pieces, use greedy
-            for (const piece of optionalPieces) {
-                const placement = tryPlacePiece(piece, gridState, occupiedCells, gridSize);
-                if (placement) {
-                    solution.push(placement);
-                }
-            }
+        if (totalPieces > MAX_PIECES_FOR_BACKTRACK) {
+            timeoutWarning = ` (greedy mode - ${totalPieces} pieces exceeds backtrack limit of ${MAX_PIECES_FOR_BACKTRACK})`;
         }
     }
     
@@ -476,30 +380,15 @@ export function solve(selectedPieces, gridState, gridSize) {
     
     const componentsPlaced = solution.length;
     const totalComponents = selectedPieces.length;
-    const mandatoryPlaced = solution.filter(p => 
-        mandatoryPieces.some(m => m.priorityId === p.priorityId)
-    ).length;
-    const totalMandatory = mandatoryPieces.length;
     
     // Build message
     let message = `Placed ${componentsPlaced}/${totalComponents} components`;
-    
-    if (totalMandatory > 0) {
-        if (mandatoryPlaced < totalMandatory) {
-            message = `Warning: Only ${mandatoryPlaced}/${totalMandatory} mandatory components fit. `;
-            message += `Total: ${componentsPlaced}/${totalComponents} placed`;
-        } else {
-            message += ` (all ${totalMandatory} mandatory)`;
-        }
-    }
-    
     message += `, covering ${coveredCells}/${poweredCount} cells`;
     
     if (protectedCount > 0) {
         message += ` (${coveredProtected}/${protectedCount} protected)`;
     }
     
-    // Add timeout warning if applicable
     message += timeoutWarning;
     
     return {
@@ -509,8 +398,6 @@ export function solve(selectedPieces, gridState, gridSize) {
         stats: {
             placed: componentsPlaced,
             total: totalComponents,
-            mandatoryPlaced,
-            totalMandatory,
             coveredCells,
             poweredCount,
             coveredProtected,
