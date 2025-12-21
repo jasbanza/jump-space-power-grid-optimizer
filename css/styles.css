@@ -14,6 +14,9 @@
     --accent-green: #00ff88;
     --accent-green-dim: #00aa55;
     --accent-green-glow: rgba(0, 255, 136, 0.3);
+    --accent-blue: #00ccff;
+    --accent-blue-dim: #0088aa;
+    --accent-blue-glow: rgba(0, 204, 255, 0.3);
     --border-color: #2a2a35;
     --btn-primary: #00cc6a;
     --btn-primary-hover: #00ff88;
@@ -68,7 +71,7 @@ main {
     grid-row: 1 / 3;
 }
 
-.pieces-section {
+.components-section {
     grid-column: 2;
     grid-row: 1;
 }
@@ -163,7 +166,18 @@ h2 {
     background-color: var(--accent-green);
 }
 
-/* Piece overlay on grid cells */
+/* Protected cells (light blue) */
+.grid-cell.protected {
+    background-color: var(--accent-blue-dim);
+    box-shadow: inset 0 0 10px var(--accent-blue-glow),
+                0 0 5px var(--accent-blue-glow);
+}
+
+.grid-cell.protected:hover {
+    background-color: var(--accent-blue);
+}
+
+/* Component overlay on grid cells */
 .grid-cell.has-piece {
     position: relative;
 }
@@ -221,16 +235,167 @@ h2 {
     cursor: not-allowed;
 }
 
-/* Pieces section */
-#pieces-container {
+/* Components section */
+#components-container {
     display: flex;
     flex-direction: column;
-    gap: 10px;
-    max-height: 400px;
+    gap: 8px;
+    max-height: 450px;
     overflow-y: auto;
     padding-right: 10px;
 }
 
+/* Component Filters */
+.component-filters {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.filter-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+}
+
+.filter-input:focus {
+    outline: none;
+    border-color: var(--accent-green);
+    box-shadow: 0 0 5px var(--accent-green-glow);
+}
+
+.filter-input::placeholder {
+    color: var(--text-secondary);
+}
+
+/* Component Accordion */
+.component-accordion {
+    background-color: var(--bg-secondary);
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.component-accordion.has-selection {
+    border-color: var(--accent-green);
+    box-shadow: 0 0 10px var(--accent-green-glow);
+}
+
+.component-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.component-header:hover {
+    background-color: var(--bg-tertiary);
+}
+
+.component-toggle {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    transition: transform 0.2s ease;
+}
+
+.component-accordion.expanded .component-toggle {
+    transform: rotate(90deg);
+}
+
+.component-name {
+    flex: 1;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.component-badge {
+    background-color: var(--bg-tertiary);
+    color: var(--text-secondary);
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+}
+
+.component-tiers {
+    display: none;
+    padding: 0 12px 12px 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.component-accordion.expanded .component-tiers {
+    display: block;
+}
+
+.tier-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.tier-item:last-child {
+    border-bottom: none;
+}
+
+.tier-label {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    min-width: 25px;
+}
+
+.tier-quantity {
+    width: 45px;
+    height: 26px;
+    padding: 2px 6px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+.tier-quantity:focus {
+    outline: none;
+    border-color: var(--accent-green);
+    box-shadow: 0 0 5px var(--accent-green-glow);
+}
+
+.tier-preview {
+    display: inline-grid;
+    gap: 1px;
+    background-color: var(--border-color);
+    padding: 1px;
+    border-radius: 2px;
+}
+
+.tier-preview-cell {
+    width: 10px;
+    height: 10px;
+    border-radius: 1px;
+}
+
+.tier-preview-cell.filled {
+    background-color: var(--accent-green-dim);
+}
+
+.tier-preview-cell.empty {
+    background-color: transparent;
+}
+
+.tier-blocks {
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+}
+
+/* Legacy piece styles (keeping for backwards compatibility) */
 .piece-item {
     display: flex;
     align-items: center;

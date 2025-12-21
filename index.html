@@ -22,7 +22,7 @@
                         <option value="">-- Select Template --</option>
                     </select>
                 </div>
-                <p class="instructions">Click cells to toggle powered (green) / unpowered (black)</p>
+                <p class="instructions">Click cells to toggle. Green = powered, Blue = protected (prioritized)</p>
                 <div id="grid-container"></div>
                 <div class="grid-controls">
                     <button id="clear-grid-btn" class="btn btn-secondary">Clear Grid</button>
@@ -30,10 +30,13 @@
                 </div>
             </div>
 
-            <div class="pieces-section">
+            <div class="components-section">
                 <h2>Components</h2>
-                <p class="instructions">Select components to place on the grid</p>
-                <div id="pieces-container"></div>
+                <div class="component-filters">
+                    <input type="text" id="filter-name" class="filter-input" placeholder="Filter by name...">
+                    <input type="number" id="filter-blocks" class="filter-input" placeholder="Blocks" min="1" max="25" style="width: 70px; flex: none;">
+                </div>
+                <div id="components-container"></div>
             </div>
 
             <div class="solve-section">
@@ -41,7 +44,7 @@
                 <div class="solve-options">
                     <label class="checkbox-label">
                         <input type="checkbox" id="require-all-checkbox">
-                        <span>Require all selected pieces to fit</span>
+                        <span>Require all selected components to fit</span>
                     </label>
                 </div>
                 <button id="solve-btn" class="btn btn-primary">Solve</button>
@@ -50,7 +53,14 @@
         </main>
 
         <footer>
-            <p>Jump Space Power Grid Optimizer - <a href="https://github.com/jasbanza/jump-space-power-grid-optimizer" target="_blank">GitHub</a></p>
+            <p>Help us build the component library!</p>
+            <p>
+                <a href="https://github.com/jasbanza/jump-space-power-grid-optimizer/blob/main/data/components.json" target="_blank">Add Components</a>
+                &nbsp;|&nbsp;
+                <a href="https://github.com/jasbanza/jump-space-power-grid-optimizer/blob/main/data/templates.json" target="_blank">Add Templates</a>
+                &nbsp;|&nbsp;
+                <a href="https://github.com/jasbanza/jump-space-power-grid-optimizer" target="_blank">GitHub</a>
+            </p>
         </footer>
     </div>
 

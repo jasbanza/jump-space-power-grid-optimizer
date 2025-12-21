@@ -1,15 +1,29 @@
 /**
  * Backtracking Solver for Power Grid Optimization
+ * 
+ * Grid values:
+ * - 0 = unpowered (cannot place)
+ * - 1 = powered (can place)
+ * - 2 = protected (can place, prioritized)
  */
 
-import { getAllRotations, getOccupiedCells, countCells } from './pieces.js';
+import { getAllRotations, getOccupiedCells, countCells } from './components.js';
+
+/**
+ * Check if a cell is powered (value 1 or 2)
+ * @param {number} value - Cell value
+ * @returns {boolean} - Whether cell is powered
+ */
+function isPowered(value) {
+    return value === 1 || value === 2;
+}
 
 /**
  * Check if a piece can be placed at a given position
  * @param {number[][]} shape - The piece shape matrix
  * @param {number} startRow - Top-left row position
  * @param {number} startCol - Top-left column position
- * @param {boolean[][]} gridState - Current grid state (powered cells)
+ * @param {number[][]} gridState - Current grid state
  * @param {Set<string>} occupiedCells - Set of already occupied cell keys "row,col"
  * @param {number} gridSize - Size of the grid
  * @returns {boolean} - Whether the piece can be placed
@@ -22,8 +36,8 @@ function canPlace(shape, startRow, startCol, gridState, occupiedCells, gridSize)
         if (cell.row < 0 || cell.row >= gridSize || cell.col < 0 || cell.col >= gridSize) {
             return false;
         }
-        // Check if cell is powered (green)
-        if (!gridState[cell.row][cell.col]) {
+        // Check if cell is powered (1 or 2)
+        if (!isPowered(gridState[cell.row][cell.col])) {
             return false;
         }
         // Check if cell is already occupied by another piece
@@ -34,6 +48,27 @@ function canPlace(shape, startRow, startCol, gridState, occupiedCells, gridSize)
     }
     
     return true;
+}
+
+/**
+ * Count how many protected cells this placement would cover
+ * @param {number[][]} shape - The piece shape matrix
+ * @param {number} startRow - Top-left row position
+ * @param {number} startCol - Top-left column position
+ * @param {number[][]} gridState - Current grid state
+ * @returns {number} - Number of protected cells covered
+ */
+function countProtectedCells(shape, startRow, startCol, gridState) {
+    const cells = getOccupiedCells(shape, startRow, startCol);
+    let count = 0;
+    
+    for (const cell of cells) {
+        if (gridState[cell.row]?.[cell.col] === 2) {
+            count++;
+        }
+    }
+    
+    return count;
 }
 
 /**
@@ -69,10 +104,50 @@ function removePiece(placedKeys, occupiedCells) {
 }
 
 /**
+ * Get all valid placements for a piece, sorted by protected cell coverage (descending)
+ * @param {Object} piece - Piece object with shape
+ * @param {number[][]} gridState - Grid state
+ * @param {Set<string>} occupiedCells - Occupied cells
+ * @param {number} gridSize - Grid size
+ * @returns {Array} - Array of valid placements sorted by protected coverage
+ */
+function getValidPlacements(piece, gridState, occupiedCells, gridSize) {
+    const placements = [];
+    const rotations = getAllRotations(piece.shape);
+    
+    for (let rotIdx = 0; rotIdx < rotations.length; rotIdx++) {
+        const shape = rotations[rotIdx];
+        const rows = shape.length;
+        const cols = shape[0].length;
+        
+        for (let row = 0; row <= gridSize - rows; row++) {
+            for (let col = 0; col <= gridSize - cols; col++) {
+                if (canPlace(shape, row, col, gridState, occupiedCells, gridSize)) {
+                    const protectedCount = countProtectedCells(shape, row, col, gridState);
+                    placements.push({
+                        shape,
+                        row,
+                        col,
+                        rotIdx,
+                        protectedCount
+                    });
+                }
+            }
+        }
+    }
+    
+    // Sort by protected cell coverage (highest first)
+    placements.sort((a, b) => b.protectedCount - a.protectedCount);
+    
+    return placements;
+}
+
+/**
  * Backtracking solver - try to place all pieces
+ * Prioritizes placements that cover protected cells
  * @param {Array} pieces - Array of piece objects with shapes
  * @param {number} pieceIndex - Current piece index
- * @param {boolean[][]} gridState - Grid state
+ * @param {number[][]} gridState - Grid state
  * @param {Set<string>} occupiedCells - Occupied cells
  * @param {number} gridSize - Grid size
  * @param {Array} placements - Current placements
@@ -86,46 +161,36 @@ function backtrack(pieces, pieceIndex, gridState, occupiedCells, gridSize, place
     }
     
     const piece = pieces[pieceIndex];
-    const rotations = getAllRotations(piece.shape);
+    const validPlacements = getValidPlacements(piece, gridState, occupiedCells, gridSize);
     
-    // Try each rotation
-    for (let rotIdx = 0; rotIdx < rotations.length; rotIdx++) {
-        const shape = rotations[rotIdx];
-        const rows = shape.length;
-        const cols = shape[0].length;
+    // Try each valid placement (sorted by protected coverage)
+    for (const placement of validPlacements) {
+        // Place the piece
+        const placedKeys = placePiece(placement.shape, placement.row, placement.col, occupiedCells);
+        placements.push({
+            pieceId: piece.id,
+            pieceName: piece.name,
+            componentName: piece.componentName || piece.name,
+            shape: placement.shape,
+            row: placement.row,
+            col: placement.col,
+            rotation: placement.rotIdx * 90,
+            cells: getOccupiedCells(placement.shape, placement.row, placement.col)
+        });
         
-        // Try each position
-        for (let row = 0; row <= gridSize - rows; row++) {
-            for (let col = 0; col <= gridSize - cols; col++) {
-                if (canPlace(shape, row, col, gridState, occupiedCells, gridSize)) {
-                    // Place the piece
-                    const placedKeys = placePiece(shape, row, col, occupiedCells);
-                    placements.push({
-                        pieceId: piece.id,
-                        pieceName: piece.name,
-                        shape: shape,
-                        row: row,
-                        col: col,
-                        rotation: rotIdx * 90,
-                        cells: getOccupiedCells(shape, row, col)
-                    });
-                    
-                    // Recurse
-                    const result = backtrack(
-                        pieces, pieceIndex + 1, gridState, occupiedCells, 
-                        gridSize, placements, requireAll
-                    );
-                    
-                    if (result !== null) {
-                        return result;
-                    }
-                    
-                    // Backtrack
-                    removePiece(placedKeys, occupiedCells);
-                    placements.pop();
-                }
-            }
+        // Recurse
+        const result = backtrack(
+            pieces, pieceIndex + 1, gridState, occupiedCells, 
+            gridSize, placements, requireAll
+        );
+        
+        if (result !== null) {
+            return result;
         }
+        
+        // Backtrack
+        removePiece(placedKeys, occupiedCells);
+        placements.pop();
     }
     
     // If we're in maximize mode and couldn't place this piece, try skipping it
@@ -140,15 +205,15 @@ function backtrack(pieces, pieceIndex, gridState, occupiedCells, gridSize, place
 }
 
 /**
- * Find the best solution (maximize coverage)
+ * Find the best solution (maximize coverage, prioritize protected cells)
  * @param {Array} pieces - Array of piece objects
- * @param {boolean[][]} gridState - Grid state
+ * @param {number[][]} gridState - Grid state
  * @param {number} gridSize - Grid size
  * @returns {Array} - Best solution found
  */
 function findBestSolution(pieces, gridState, gridSize) {
     let bestSolution = [];
-    let bestCoverage = 0;
+    let bestScore = 0; // Score = protectedCovered * 1000 + totalCovered
     
     // Sort pieces by size (largest first) for better results
     const sortedPieces = [...pieces].sort((a, b) => {
@@ -156,47 +221,38 @@ function findBestSolution(pieces, gridState, gridSize) {
     });
     
     // Try all subsets of pieces (for small numbers of pieces)
-    // For larger sets, use greedy approach with backtracking
     if (pieces.length <= 10) {
-        // Generate all permutations and try each
         const permutations = getPermutations(sortedPieces);
         
         for (const perm of permutations) {
             const occupiedCells = new Set();
             const placements = [];
+            let protectedCovered = 0;
             
             for (const piece of perm) {
-                const rotations = getAllRotations(piece.shape);
-                let placed = false;
+                const validPlacements = getValidPlacements(piece, gridState, occupiedCells, gridSize);
                 
-                for (let rotIdx = 0; rotIdx < rotations.length && !placed; rotIdx++) {
-                    const shape = rotations[rotIdx];
-                    const rows = shape.length;
-                    const cols = shape[0].length;
-                    
-                    for (let row = 0; row <= gridSize - rows && !placed; row++) {
-                        for (let col = 0; col <= gridSize - cols && !placed; col++) {
-                            if (canPlace(shape, row, col, gridState, occupiedCells, gridSize)) {
-                                const placedKeys = placePiece(shape, row, col, occupiedCells);
-                                placements.push({
-                                    pieceId: piece.id,
-                                    pieceName: piece.name,
-                                    shape: shape,
-                                    row: row,
-                                    col: col,
-                                    rotation: rotIdx * 90,
-                                    cells: getOccupiedCells(shape, row, col)
-                                });
-                                placed = true;
-                            }
-                        }
-                    }
+                if (validPlacements.length > 0) {
+                    // Take the placement with most protected cells
+                    const best = validPlacements[0];
+                    placePiece(best.shape, best.row, best.col, occupiedCells);
+                    protectedCovered += best.protectedCount;
+                    placements.push({
+                        pieceId: piece.id,
+                        pieceName: piece.name,
+                        componentName: piece.componentName || piece.name,
+                        shape: best.shape,
+                        row: best.row,
+                        col: best.col,
+                        rotation: best.rotIdx * 90,
+                        cells: getOccupiedCells(best.shape, best.row, best.col)
+                    });
                 }
             }
             
-            const coverage = occupiedCells.size;
-            if (coverage > bestCoverage) {
-                bestCoverage = coverage;
+            const score = protectedCovered * 1000 + occupiedCells.size;
+            if (score > bestScore) {
+                bestScore = score;
                 bestSolution = [...placements];
             }
         }
@@ -205,31 +261,21 @@ function findBestSolution(pieces, gridState, gridSize) {
         const occupiedCells = new Set();
         
         for (const piece of sortedPieces) {
-            const rotations = getAllRotations(piece.shape);
-            let placed = false;
+            const validPlacements = getValidPlacements(piece, gridState, occupiedCells, gridSize);
             
-            for (let rotIdx = 0; rotIdx < rotations.length && !placed; rotIdx++) {
-                const shape = rotations[rotIdx];
-                const rows = shape.length;
-                const cols = shape[0].length;
-                
-                for (let row = 0; row <= gridSize - rows && !placed; row++) {
-                    for (let col = 0; col <= gridSize - cols && !placed; col++) {
-                        if (canPlace(shape, row, col, gridState, occupiedCells, gridSize)) {
-                            placePiece(shape, row, col, occupiedCells);
-                            bestSolution.push({
-                                pieceId: piece.id,
-                                pieceName: piece.name,
-                                shape: shape,
-                                row: row,
-                                col: col,
-                                rotation: rotIdx * 90,
-                                cells: getOccupiedCells(shape, row, col)
-                            });
-                            placed = true;
-                        }
-                    }
-                }
+            if (validPlacements.length > 0) {
+                const best = validPlacements[0];
+                placePiece(best.shape, best.row, best.col, occupiedCells);
+                bestSolution.push({
+                    pieceId: piece.id,
+                    pieceName: piece.name,
+                    componentName: piece.componentName || piece.name,
+                    shape: best.shape,
+                    row: best.row,
+                    col: best.col,
+                    rotation: best.rotIdx * 90,
+                    cells: getOccupiedCells(best.shape, best.row, best.col)
+                });
             }
         }
     }
@@ -278,7 +324,7 @@ function getPermutations(arr) {
 /**
  * Main solve function
  * @param {Array} selectedPieces - Array of selected piece objects
- * @param {boolean[][]} gridState - Grid state (powered cells)
+ * @param {number[][]} gridState - Grid state (0=unpowered, 1=powered, 2=protected)
  * @param {number} gridSize - Size of the grid
  * @param {boolean} requireAll - Whether all pieces must be placed
  * @returns {{success: boolean, solution: Array, message: string}}
@@ -288,15 +334,20 @@ export function solve(selectedPieces, gridState, gridSize, requireAll) {
         return {
             success: false,
             solution: [],
-            message: 'No pieces selected'
+            message: 'No components selected'
         };
     }
     
-    // Count powered cells
+    // Count powered and protected cells
     let poweredCount = 0;
+    let protectedCount = 0;
     for (let r = 0; r < gridSize; r++) {
         for (let c = 0; c < gridSize; c++) {
-            if (gridState[r][c]) poweredCount++;
+            if (gridState[r][c] === 1) poweredCount++;
+            if (gridState[r][c] === 2) {
+                poweredCount++;
+                protectedCount++;
+            }
         }
     }
     
@@ -318,7 +369,7 @@ export function solve(selectedPieces, gridState, gridSize, requireAll) {
         return {
             success: false,
             solution: [],
-            message: `Selected pieces need ${totalPieceCells} cells, but only ${poweredCount} powered cells available`
+            message: `Selected components need ${totalPieceCells} cells, but only ${poweredCount} powered cells available`
         };
     }
     
@@ -336,7 +387,7 @@ export function solve(selectedPieces, gridState, gridSize, requireAll) {
             return {
                 success: false,
                 solution: [],
-                message: 'No solution found - pieces cannot all fit on the powered cells'
+                message: 'No solution found - components cannot all fit on the powered cells'
             };
         }
     } else {
@@ -346,16 +397,27 @@ export function solve(selectedPieces, gridState, gridSize, requireAll) {
     
     // Calculate coverage
     let coveredCells = 0;
+    let coveredProtected = 0;
     for (const placement of solution) {
-        coveredCells += placement.cells.length;
+        for (const cell of placement.cells) {
+            coveredCells++;
+            if (gridState[cell.row][cell.col] === 2) {
+                coveredProtected++;
+            }
+        }
     }
     
-    const piecesPlaced = solution.length;
-    const totalPieces = selectedPieces.length;
+    const componentsPlaced = solution.length;
+    const totalComponents = selectedPieces.length;
+    
+    let message = `Placed ${componentsPlaced}/${totalComponents} components, covering ${coveredCells}/${poweredCount} cells`;
+    if (protectedCount > 0) {
+        message += ` (${coveredProtected}/${protectedCount} protected)`;
+    }
     
     return {
         success: true,
         solution: solution,
-        message: `Placed ${piecesPlaced}/${totalPieces} pieces, covering ${coveredCells}/${poweredCount} powered cells`
+        message: message
     };
 }

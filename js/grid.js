@@ -1,22 +1,27 @@
 /**
  * Grid State Management for Power Grid Optimizer
+ * 
+ * Grid cell values:
+ * - 0 = unpowered (black)
+ * - 1 = powered (green)
+ * - 2 = protected (light blue - prioritized in solver)
  */
 
 const GRID_SIZE = 8;
 const STORAGE_KEY = 'jumpspace-grid-state';
 
-// Grid state: 2D array where true = powered (green), false = unpowered (black)
+// Grid state: 2D array of cell values (0, 1, or 2)
 let gridState = createEmptyGrid();
 
-// Solution state: tracks which pieces are placed where
+// Solution state: tracks which components are placed where
 let solutionState = [];
 
 /**
  * Create an empty 8x8 grid
- * @returns {boolean[][]} - Empty grid
+ * @returns {number[][]} - Empty grid with all zeros
  */
 function createEmptyGrid() {
-    return Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(false));
+    return Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0));
 }
 
 /**
@@ -28,7 +33,7 @@ export function initGrid() {
 
 /**
  * Get the current grid state
- * @returns {boolean[][]} - Current grid state
+ * @returns {number[][]} - Current grid state
  */
 export function getGridState() {
     return gridState;
@@ -43,44 +48,67 @@ export function getGridSize() {
 }
 
 /**
- * Toggle a cell's powered state
+ * Toggle a cell's state: 0 -> 1 -> 2 -> 0
  * @param {number} row - Row index
  * @param {number} col - Column index
- * @returns {boolean} - New state of the cell
+ * @returns {number} - New state of the cell
  */
 export function toggleCell(row, col) {
     if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
-        gridState[row][col] = !gridState[row][col];
+        // Cycle through: 0 -> 1 -> 0 (simple toggle for now)
+        // Users can use templates for protected cells
+        gridState[row][col] = gridState[row][col] === 0 ? 1 : 0;
         saveGridState();
         return gridState[row][col];
     }
-    return false;
+    return 0;
 }
 
 /**
- * Set a cell's powered state
+ * Set a cell's state
  * @param {number} row - Row index
  * @param {number} col - Column index
- * @param {boolean} powered - Whether the cell is powered
+ * @param {number} value - Cell value (0, 1, or 2)
  */
-export function setCell(row, col, powered) {
+export function setCell(row, col, value) {
     if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
-        gridState[row][col] = powered;
+        gridState[row][col] = value;
         saveGridState();
     }
 }
 
 /**
- * Check if a cell is powered
+ * Get cell value
  * @param {number} row - Row index
  * @param {number} col - Column index
- * @returns {boolean} - Whether the cell is powered
+ * @returns {number} - Cell value (0, 1, or 2)
+ */
+export function getCellValue(row, col) {
+    if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
+        return gridState[row][col];
+    }
+    return 0;
+}
+
+/**
+ * Check if a cell is powered (green or protected)
+ * @param {number} row - Row index
+ * @param {number} col - Column index
+ * @returns {boolean} - Whether the cell is powered (1 or 2)
  */
 export function isCellPowered(row, col) {
-    if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
-        return gridState[row][col];
-    }
-    return false;
+    const value = getCellValue(row, col);
+    return value === 1 || value === 2;
+}
+
+/**
+ * Check if a cell is protected
+ * @param {number} row - Row index
+ * @param {number} col - Column index
+ * @returns {boolean} - Whether the cell is protected (2)
+ */
+export function isCellProtected(row, col) {
+    return getCellValue(row, col) === 2;
 }
 
 /**
@@ -92,7 +120,7 @@ export function clearGrid() {
 }
 
 /**
- * Set grid state from a template (8x8 array of 0s and 1s)
+ * Set grid state from a template (8x8 array of 0s, 1s, and 2s)
  * @param {number[][]} template - 8x8 grid template
  */
 export function setGridFromTemplate(template) {
@@ -103,21 +131,42 @@ export function setGridFromTemplate(template) {
     
     for (let row = 0; row < GRID_SIZE; row++) {
         for (let col = 0; col < GRID_SIZE; col++) {
-            gridState[row][col] = template[row][col] === 1;
+            gridState[row][col] = template[row][col] || 0;
         }
     }
     saveGridState();
 }
 
 /**
- * Get all powered cells
- * @returns {Array<{row: number, col: number}>} - Array of powered cell coordinates
+ * Get all powered cells (both green and protected)
+ * @returns {Array<{row: number, col: number, protected: boolean}>}
  */
 export function getPoweredCells() {
     const cells = [];
     for (let row = 0; row < GRID_SIZE; row++) {
         for (let col = 0; col < GRID_SIZE; col++) {
-            if (gridState[row][col]) {
+            const value = gridState[row][col];
+            if (value === 1 || value === 2) {
+                cells.push({ 
+                    row, 
+                    col, 
+                    protected: value === 2 
+                });
+            }
+        }
+    }
+    return cells;
+}
+
+/**
+ * Get all protected cells
+ * @returns {Array<{row: number, col: number}>}
+ */
+export function getProtectedCells() {
+    const cells = [];
+    for (let row = 0; row < GRID_SIZE; row++) {
+        for (let col = 0; col < GRID_SIZE; col++) {
+            if (gridState[row][col] === 2) {
                 cells.push({ row, col });
             }
         }
@@ -127,20 +176,36 @@ export function getPoweredCells() {
 
 /**
  * Count powered cells
- * @returns {number} - Number of powered cells
+ * @returns {number} - Number of powered cells (1 or 2)
  */
 export function countPoweredCells() {
     let count = 0;
     for (let row = 0; row < GRID_SIZE; row++) {
         for (let col = 0; col < GRID_SIZE; col++) {
-            if (gridState[row][col]) count++;
+            if (gridState[row][col] === 1 || gridState[row][col] === 2) {
+                count++;
+            }
         }
     }
     return count;
 }
 
 /**
- * Set the solution state (placed pieces)
+ * Count protected cells
+ * @returns {number} - Number of protected cells (2)
+ */
+export function countProtectedCells() {
+    let count = 0;
+    for (let row = 0; row < GRID_SIZE; row++) {
+        for (let col = 0; col < GRID_SIZE; col++) {
+            if (gridState[row][col] === 2) count++;
+        }
+    }
+    return count;
+}
+
+/**
+ * Set the solution state (placed components)
  * @param {Array} solution - Array of placement objects
  */
 export function setSolution(solution) {
@@ -182,7 +247,15 @@ function loadGridState() {
         if (saved) {
             const parsed = JSON.parse(saved);
             if (Array.isArray(parsed) && parsed.length === GRID_SIZE) {
-                gridState = parsed;
+                // Convert old boolean format to new number format
+                gridState = parsed.map(row => 
+                    row.map(cell => {
+                        if (typeof cell === 'boolean') {
+                            return cell ? 1 : 0;
+                        }
+                        return cell || 0;
+                    })
+                );
             }
         }
     } catch (e) {
