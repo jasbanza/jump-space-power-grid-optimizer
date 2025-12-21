@@ -237,8 +237,6 @@ function setupEventListeners() {
             renderGrid();
             updateStatus(`Loaded template: ${GRID_TEMPLATES[templateId].name}`, 'info');
         }
-        // Reset select to default
-        e.target.value = '';
     });
     
     // Clear grid button
