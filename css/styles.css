@@ -91,6 +91,41 @@ h2 {
     margin-bottom: 15px;
 }
 
+/* Template selector */
+.template-selector {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.template-selector label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.template-selector select {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    background-color: var(--bg-tertiary);
+    color: var(--text-primary);
+    font-size: 0.9rem;
+    cursor: pointer;
+    min-width: 180px;
+}
+
+.template-selector select:focus {
+    outline: none;
+    border-color: var(--accent-green);
+    box-shadow: 0 0 5px var(--accent-green-glow);
+}
+
+.template-selector select option {
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
 /* Grid */
 #grid-container {
     display: inline-grid;

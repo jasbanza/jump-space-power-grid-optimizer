@@ -4,10 +4,11 @@
 
 import { 
     getGridState, getGridSize, toggleCell, clearGrid, 
-    setSolution, getSolution, clearSolution 
+    setSolution, getSolution, clearSolution, setGridFromTemplate 
 } from './grid.js';
 import { PIECES } from './pieces.js';
 import { solve } from './solver.js';
+import { GRID_TEMPLATES, getTemplateList } from './templates.js';
 
 // Track piece quantities (pieceId -> count)
 const pieceQuantities = new Map();
@@ -25,7 +26,24 @@ const PIECE_COLORS = [
 export function initUI() {
     renderGrid();
     renderPieces();
+    renderTemplates();
     setupEventListeners();
+}
+
+/**
+ * Render the template selector dropdown
+ */
+function renderTemplates() {
+    const select = document.getElementById('template-select');
+    const templates = getTemplateList();
+    
+    // Keep the default option, add templates
+    templates.forEach(template => {
+        const option = document.createElement('option');
+        option.value = template.id;
+        option.textContent = template.name;
+        select.appendChild(option);
+    });
 }
 
 /**
@@ -208,6 +226,19 @@ function setupEventListeners() {
             clearSolution();
             renderGrid();
         }
+    });
+    
+    // Template selector
+    document.getElementById('template-select').addEventListener('change', (e) => {
+        const templateId = e.target.value;
+        if (templateId && GRID_TEMPLATES[templateId]) {
+            setGridFromTemplate(GRID_TEMPLATES[templateId].grid);
+            clearSolution();
+            renderGrid();
+            updateStatus(`Loaded template: ${GRID_TEMPLATES[templateId].name}`, 'info');
+        }
+        // Reset select to default
+        e.target.value = '';
     });
     
     // Clear grid button

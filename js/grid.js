@@ -92,6 +92,24 @@ export function clearGrid() {
 }
 
 /**
+ * Set grid state from a template (8x8 array of 0s and 1s)
+ * @param {number[][]} template - 8x8 grid template
+ */
+export function setGridFromTemplate(template) {
+    if (!Array.isArray(template) || template.length !== GRID_SIZE) {
+        console.warn('Invalid template: must be 8x8 array');
+        return;
+    }
+    
+    for (let row = 0; row < GRID_SIZE; row++) {
+        for (let col = 0; col < GRID_SIZE; col++) {
+            gridState[row][col] = template[row][col] === 1;
+        }
+    }
+    saveGridState();
+}
+
+/**
  * Get all powered cells
  * @returns {Array<{row: number, col: number}>} - Array of powered cell coordinates
  */
