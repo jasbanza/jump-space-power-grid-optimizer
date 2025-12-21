@@ -235,7 +235,6 @@ function setupEventListeners() {
             setGridFromTemplate(GRID_TEMPLATES[templateId].grid);
             clearSolution();
             renderGrid();
-            updateStatus(`Loaded template: ${GRID_TEMPLATES[templateId].name}`, 'info');
         }
     });
     
