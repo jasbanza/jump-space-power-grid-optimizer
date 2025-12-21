@@ -132,7 +132,8 @@ function renderCustomDropdown(containerId, items, selectedId, selectedTier, type
         option.appendChild(info);
         
         // Click handler
-        option.addEventListener('click', () => {
+        option.addEventListener('click', (e) => {
+            e.stopPropagation();
             handleDropdownSelect(containerId, item.id, item.tier);
         });
         

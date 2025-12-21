@@ -83,29 +83,29 @@
     "id": "materiaScatterReactor",
     "name": "Materia Scatter Reactor",
     "category": "REACTORS",
-      "tiers": {
-        "2": {
-          "powerGeneration": 24,
-          "protectedPower": 8,
-          "unprotectedPower": 16,
-          "grid": [
-            [1, 1, 1, 1, 1, 1, 1, 1],
-            [0, 1, 0, 1, 1, 0, 1, 0],
-            [1, 2, 2, 1, 1, 2, 2, 1],
-            [2, 0, 2, 0, 0, 2, 0, 2]
-          ]
-        },
-        "3": {
-          "powerGeneration": 24,
-          "protectedPower": 14,
-          "unprotectedPower": 10,
-          "grid": [
-            [1, 1, 1, 1, 1, 1, 1, 1],
-            [0, 2, 0, 1, 1, 0, 2, 0],
-            [2, 2, 2, 2, 2, 2, 2, 2],
-            [2, 0, 2, 0, 0, 2, 0, 2]
-          ]
-        }
+    "tiers": {
+      "2": {
+        "powerGeneration": 24,
+        "protectedPower": 8,
+        "unprotectedPower": 16,
+        "grid": [
+          [1, 1, 1, 1, 1, 1, 1, 1],
+          [0, 1, 0, 1, 1, 0, 1, 0],
+          [1, 2, 2, 1, 1, 2, 2, 1],
+          [2, 0, 2, 0, 0, 2, 0, 2]
+        ]
+      },
+      "3": {
+        "powerGeneration": 24,
+        "protectedPower": 14,
+        "unprotectedPower": 10,
+        "grid": [
+          [1, 1, 1, 1, 1, 1, 1, 1],
+          [0, 2, 0, 1, 1, 0, 2, 0],
+          [2, 2, 2, 2, 2, 2, 2, 2],
+          [2, 0, 2, 0, 0, 2, 0, 2]
+        ]
+      }
     }
   },
   "nullWaveReactor": {
