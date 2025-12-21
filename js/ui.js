@@ -615,7 +615,7 @@ function renderPriorityList() {
         });
         
         mandatory.appendChild(mandatoryCheckbox);
-        mandatory.appendChild(document.createTextNode('Must'));
+        mandatory.appendChild(document.createTextNode('🔒'));
         
         // Protect checkbox
         const protect = document.createElement('label');
@@ -630,7 +630,7 @@ function renderPriorityList() {
         });
         
         protect.appendChild(protectCheckbox);
-        protect.appendChild(document.createTextNode('Prot'));
+        protect.appendChild(document.createTextNode('🛡️'));
         
         checkboxContainer.appendChild(mandatory);
         checkboxContainer.appendChild(protect);
