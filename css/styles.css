@@ -164,6 +164,21 @@ h2 {
     transform: rotate(180deg);
 }
 
+.custom-dropdown.disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.custom-dropdown.disabled .dropdown-selected {
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.custom-dropdown.disabled .dropdown-text {
+    color: var(--text-secondary);
+    font-style: italic;
+}
+
 .dropdown-options {
     display: none;
     position: absolute;

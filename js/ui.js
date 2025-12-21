@@ -62,9 +62,10 @@ function renderGridConfig() {
     // Render reactor dropdown
     renderCustomDropdown('reactor-dropdown', reactors, currentReactor, currentReactorTier, 'reactor');
     
-    // Render aux generator dropdowns
-    renderCustomDropdown('aux1-dropdown', auxGenerators, currentAux1, currentAux1Tier, 'aux');
-    renderCustomDropdown('aux2-dropdown', auxGenerators, currentAux2, currentAux2Tier, 'aux');
+    // Render aux generator dropdowns (disabled if no reactor selected)
+    const auxDisabled = !currentReactor;
+    renderCustomDropdown('aux1-dropdown', auxGenerators, currentAux1, currentAux1Tier, 'aux', auxDisabled);
+    renderCustomDropdown('aux2-dropdown', auxGenerators, currentAux2, currentAux2Tier, 'aux', auxDisabled);
     
     updateGridStats();
 }
@@ -72,10 +73,18 @@ function renderGridConfig() {
 /**
  * Render a custom dropdown with grid previews
  */
-function renderCustomDropdown(containerId, items, selectedId, selectedTier, type) {
+function renderCustomDropdown(containerId, items, selectedId, selectedTier, type, disabled = false) {
     const container = document.getElementById(containerId);
     const optionsContainer = container.querySelector('.dropdown-options');
     const textEl = container.querySelector('.dropdown-text');
+    
+    // Handle disabled state
+    if (disabled) {
+        container.classList.add('disabled');
+        textEl.textContent = 'Select reactor first';
+    } else {
+        container.classList.remove('disabled');
+    }
     
     optionsContainer.innerHTML = '';
     
@@ -921,6 +930,8 @@ function setupEventListeners() {
         const selected = dropdown.querySelector('.dropdown-selected');
         selected.addEventListener('click', (e) => {
             e.stopPropagation();
+            // Don't open if disabled
+            if (dropdown.classList.contains('disabled')) return;
             // Close other dropdowns
             document.querySelectorAll('.custom-dropdown').forEach(d => {
                 if (d !== dropdown) d.classList.remove('open');
