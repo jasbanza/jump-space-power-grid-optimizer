@@ -802,7 +802,7 @@ h2 {
 }
 
 #filter-name {
-    width: 100px;
+    width: 110px;
     flex: none;
 }
 
@@ -812,7 +812,7 @@ h2 {
 }
 
 #filter-tier {
-    width: 90px;
+    width: 100px;
     flex: none;
 }
 
