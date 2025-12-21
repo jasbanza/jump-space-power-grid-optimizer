@@ -509,24 +509,24 @@ export function renderGrid() {
         }
     }
     
-    // Add labels for each placed component (positioned at center of bounding box)
+    // Add labels for each placed component (positioned within bounding box)
     for (const [priorityId, bounds] of componentBounds) {
         const label = document.createElement('div');
         label.className = 'piece-label';
         label.dataset.priorityId = priorityId;
         
-        // Calculate position
+        // Calculate position and size to fit within the shape bounds
         const cellSize = 42; // grid cell size + gap
-        const centerRow = (bounds.minRow + bounds.maxRow) / 2;
-        const centerCol = (bounds.minCol + bounds.maxCol) / 2;
+        const shapeWidth = (bounds.maxCol - bounds.minCol + 1) * cellSize;
+        const shapeHeight = (bounds.maxRow - bounds.minRow + 1) * cellSize;
         
-        label.style.top = `${centerRow * cellSize + 20}px`;
+        label.style.top = `${bounds.minRow * cellSize + 2}px`;
         label.style.left = `${bounds.minCol * cellSize + 2}px`;
-        label.style.width = `${(bounds.maxCol - bounds.minCol + 1) * cellSize - 4}px`;
+        label.style.width = `${shapeWidth - 4}px`;
+        label.style.height = `${shapeHeight - 4}px`;
         
-        // Abbreviate long names
         const name = bounds.name;
-        label.textContent = name.length > 12 ? name.substring(0, 10) + '...' : name;
+        label.textContent = name;
         label.title = name;
         
         container.appendChild(label);
