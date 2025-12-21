@@ -44,10 +44,7 @@ The solver uses a multi-stage approach to maximize component placement while res
 
 ```mermaid
 flowchart TD
-    START([START: Solve]) --> CHECK{≤8 pieces?}
-    
-    CHECK -->|Yes| PHASE1[Phase 1: backtrackStrict<br/>try ALL pieces, no skipping]
-    CHECK -->|No| GREEDY[Greedy placement<br/>in priority order]
+    START([START: Solve]) --> PHASE1[Phase 1: backtrackStrict<br/>try ALL pieces, no skipping]
     
     PHASE1 --> ALL_PLACED{All placed?}
     
@@ -56,7 +53,7 @@ flowchart TD
     
     PHASE2 --> FOUND{Found solution?}
     FOUND -->|Yes| DONE
-    FOUND -->|No| GREEDY
+    FOUND -->|No| GREEDY[Greedy fallback]
     
     GREEDY --> DONE
 
@@ -95,8 +92,7 @@ This ensures the solver **always tries to place everything first** before giving
 
 | Limit | Value | Purpose |
 |-------|-------|---------|
-| `MAX_BACKTRACK_ITERATIONS` | 50,000 | Prevents browser freeze |
-| `MAX_PIECES_FOR_BACKTRACK` | 8 | Limits exponential blowup |
+| `MAX_BACKTRACK_ITERATIONS` | 100,000 | Prevents browser freeze |
 | Placements per piece | 15-20 | Reduces search space |
 
 #### 5. Visual Indicators

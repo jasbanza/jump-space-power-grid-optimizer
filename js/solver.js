@@ -15,8 +15,7 @@
 import { getAllRotations, getOccupiedCells, countCells } from './components.js';
 
 // Solver limits to prevent freezing
-const MAX_BACKTRACK_ITERATIONS = 50000;
-const MAX_PIECES_FOR_BACKTRACK = 8; // Hard limit on pieces for backtracking to prevent exponential blowup
+const MAX_BACKTRACK_ITERATIONS = 100000;
 
 /**
  * Check if a cell is powered (value 1 or 2)
@@ -312,57 +311,42 @@ export function solve(selectedPieces, gridState, gridSize) {
     let solution = [];
     let timeoutWarning = '';
     
-    const totalPieces = selectedPieces.length;
-    const useBacktrack = totalPieces <= MAX_PIECES_FOR_BACKTRACK;
+    const iterationCounter = { count: 0, exceeded: false };
     
-    if (useBacktrack) {
-        const iterationCounter = { count: 0, exceeded: false };
+    // Phase 1: Try to place ALL pieces (no skipping)
+    const fullSolution = backtrackStrict(
+        selectedPieces, 0, gridState, occupiedCells, gridSize, [], iterationCounter
+    );
+    
+    if (fullSolution !== null) {
+        // All pieces placed successfully!
+        solution = fullSolution;
+    } else {
+        // Phase 2: Allow skipping to maximize placements
+        occupiedCells.clear();
+        iterationCounter.count = 0;
+        iterationCounter.exceeded = false;
         
-        // Phase 1: Try to place ALL pieces (no skipping)
-        const fullSolution = backtrackStrict(
+        const partialSolution = backtrackAllowSkip(
             selectedPieces, 0, gridState, occupiedCells, gridSize, [], iterationCounter
         );
         
-        if (fullSolution !== null) {
-            // All pieces placed successfully!
-            solution = fullSolution;
+        if (iterationCounter.exceeded) {
+            timeoutWarning = ' (search limit reached)';
+        }
+        
+        if (partialSolution !== null) {
+            solution = partialSolution;
         } else {
-            // Phase 2: Allow skipping to maximize placements
+            // Phase 3: Fall back to greedy only if backtracking failed
             occupiedCells.clear();
-            iterationCounter.count = 0;
-            iterationCounter.exceeded = false;
-            
-            const partialSolution = backtrackAllowSkip(
-                selectedPieces, 0, gridState, occupiedCells, gridSize, [], iterationCounter
-            );
-            
-            if (iterationCounter.exceeded) {
-                timeoutWarning = ' (search limit reached)';
-            }
-            
-            if (partialSolution !== null) {
-                solution = partialSolution;
-            } else {
-                // Phase 3: Fall back to greedy
-                occupiedCells.clear();
-                for (const piece of selectedPieces) {
-                    const placement = tryPlacePiece(piece, gridState, occupiedCells, gridSize);
-                    if (placement) {
-                        solution.push(placement);
-                    }
+            for (const piece of selectedPieces) {
+                const placement = tryPlacePiece(piece, gridState, occupiedCells, gridSize);
+                if (placement) {
+                    solution.push(placement);
                 }
             }
-        }
-    } else {
-        // Too many pieces for backtracking, use greedy
-        for (const piece of selectedPieces) {
-            const placement = tryPlacePiece(piece, gridState, occupiedCells, gridSize);
-            if (placement) {
-                solution.push(placement);
-            }
-        }
-        if (totalPieces > MAX_PIECES_FOR_BACKTRACK) {
-            timeoutWarning = ` (greedy mode - ${totalPieces} pieces exceeds backtrack limit of ${MAX_PIECES_FOR_BACKTRACK})`;
+            timeoutWarning = ' (greedy fallback)';
         }
     }
     
