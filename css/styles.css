@@ -401,6 +401,7 @@ h2 {
     background-color: rgba(0, 0, 0, 0.6);
     border: 2px solid rgba(255, 255, 255, 0.5);
     transition: all 0.15s ease;
+    cursor: pointer;
 }
 
 /* Remove internal borders for adjacent cells in same component */
@@ -612,18 +613,26 @@ h2 {
     color: var(--text-secondary);
 }
 
-.priority-mandatory {
+.priority-checkboxes {
     display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.7rem;
-    color: var(--text-secondary);
+    flex-direction: column;
+    gap: 2px;
 }
 
-.priority-mandatory input {
-    width: 14px;
-    height: 14px;
+.priority-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+.priority-checkbox input {
+    width: 12px;
+    height: 12px;
     accent-color: var(--accent-blue);
+    cursor: pointer;
 }
 
 .priority-remove {

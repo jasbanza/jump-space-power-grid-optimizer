@@ -15,7 +15,7 @@ import {
 // Track component tier quantities: Map<"componentId_tier", quantity>
 const componentQuantities = new Map();
 
-// Priority list: Array of {id, componentId, tier, mandatory}
+// Priority list: Array of {id, componentId, tier, mandatory, protect}
 let priorityList = [];
 let priorityIdCounter = 0;
 
@@ -491,6 +491,17 @@ export function renderGrid() {
                     overlay.classList.add('no-border-right');
                 }
                 
+                // Hover events for grid-to-priority highlighting
+                const priorityId = componentInfo.priorityId;
+                overlay.addEventListener('mouseenter', () => {
+                    highlightGridCells(priorityId);
+                    highlightPriorityItem(priorityId);
+                });
+                overlay.addEventListener('mouseleave', () => {
+                    unhighlightGridCells(priorityId);
+                    unhighlightPriorityItem(priorityId);
+                });
+                
                 cell.appendChild(overlay);
             }
             
@@ -587,20 +598,42 @@ function renderPriorityList() {
         info.appendChild(name);
         info.appendChild(tier);
         
+        // Checkbox container for Must and Protect
+        const checkboxContainer = document.createElement('div');
+        checkboxContainer.className = 'priority-checkboxes';
+        
         // Mandatory checkbox
         const mandatory = document.createElement('label');
-        mandatory.className = 'priority-mandatory';
+        mandatory.className = 'priority-checkbox';
         
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.checked = item.mandatory;
-        checkbox.addEventListener('change', (e) => {
+        const mandatoryCheckbox = document.createElement('input');
+        mandatoryCheckbox.type = 'checkbox';
+        mandatoryCheckbox.checked = item.mandatory;
+        mandatoryCheckbox.addEventListener('change', (e) => {
             item.mandatory = e.target.checked;
             savePriorityList();
         });
         
-        mandatory.appendChild(checkbox);
+        mandatory.appendChild(mandatoryCheckbox);
         mandatory.appendChild(document.createTextNode('Must'));
+        
+        // Protect checkbox
+        const protect = document.createElement('label');
+        protect.className = 'priority-checkbox';
+        
+        const protectCheckbox = document.createElement('input');
+        protectCheckbox.type = 'checkbox';
+        protectCheckbox.checked = item.protect || false;
+        protectCheckbox.addEventListener('change', (e) => {
+            item.protect = e.target.checked;
+            savePriorityList();
+        });
+        
+        protect.appendChild(protectCheckbox);
+        protect.appendChild(document.createTextNode('Prot'));
+        
+        checkboxContainer.appendChild(mandatory);
+        checkboxContainer.appendChild(protect);
         
         // Remove button
         const remove = document.createElement('button');
@@ -613,7 +646,7 @@ function renderPriorityList() {
         div.appendChild(handle);
         div.appendChild(preview);
         div.appendChild(info);
-        div.appendChild(mandatory);
+        div.appendChild(checkboxContainer);
         div.appendChild(remove);
         
         // Drag events
@@ -804,7 +837,8 @@ function syncPriorityList(componentId, tier, newQty) {
                 id: `priority-${priorityIdCounter++}`,
                 componentId,
                 tier,
-                mandatory: false
+                mandatory: false,
+                protect: false
             });
         }
     } else if (newQty < currentCount) {
