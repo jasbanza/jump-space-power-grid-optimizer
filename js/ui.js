@@ -896,20 +896,6 @@ function getSelectedComponentsFromPriority() {
  * Set up event listeners
  */
 function setupEventListeners() {
-    // Grid cell click
-    document.getElementById('grid-container').addEventListener('click', (e) => {
-        const cell = e.target.closest('.grid-cell');
-        if (cell && !cell.classList.contains('has-piece')) {
-            const row = parseInt(cell.dataset.row);
-            const col = parseInt(cell.dataset.col);
-            toggleCell(row, col);
-            clearSolution();
-            placedPriorityIds.clear();
-            renderGrid();
-            renderPriorityList();
-        }
-    });
-    
     // Grid hover for highlighting priority items
     document.getElementById('grid-container').addEventListener('mouseover', (e) => {
         const overlay = e.target.closest('.piece-overlay');

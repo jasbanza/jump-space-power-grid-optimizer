@@ -370,14 +370,8 @@ h2 {
     height: var(--grid-cell-size);
     background-color: var(--bg-secondary);
     border-radius: 2px;
-    cursor: pointer;
     transition: all 0.15s ease;
     position: relative;
-}
-
-.grid-cell:hover {
-    transform: scale(1.05);
-    z-index: 1;
 }
 
 .grid-cell.powered {
@@ -386,19 +380,11 @@ h2 {
                 0 0 5px var(--accent-green-glow);
 }
 
-.grid-cell.powered:hover {
-    background-color: var(--accent-green);
-}
-
 /* Protected cells (light blue) */
 .grid-cell.protected {
     background-color: var(--accent-blue-dim);
     box-shadow: inset 0 0 10px var(--accent-blue-glow),
                 0 0 5px var(--accent-blue-glow);
-}
-
-.grid-cell.protected:hover {
-    background-color: var(--accent-blue);
 }
 
 /* Component overlay on grid cells - semi-transparent black */
