@@ -41,10 +41,141 @@ let currentAux2Tier = '1';
 // Track which priority items are placed in the solution
 let placedPriorityIds = new Set();
 
+// LocalStorage keys for persistence
+const STORAGE_KEY_CONFIG = 'jumpspace-grid-config';
+const STORAGE_KEY_COMPONENTS = 'jumpspace-components';
+const STORAGE_KEY_PRIORITY = 'jumpspace-priority';
+
+/**
+ * Save grid configuration (reactor/aux selections) to localStorage
+ */
+function saveGridConfig() {
+    try {
+        const config = {
+            reactor: { id: currentReactor, tier: currentReactorTier },
+            aux1: { id: currentAux1, tier: currentAux1Tier },
+            aux2: { id: currentAux2, tier: currentAux2Tier }
+        };
+        localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(config));
+    } catch (e) {
+        console.warn('Could not save grid config to localStorage:', e);
+    }
+}
+
+/**
+ * Save component quantities to localStorage
+ */
+function saveComponents() {
+    try {
+        const quantities = {};
+        componentQuantities.forEach((qty, key) => {
+            quantities[key] = qty;
+        });
+        localStorage.setItem(STORAGE_KEY_COMPONENTS, JSON.stringify({ quantities }));
+    } catch (e) {
+        console.warn('Could not save components to localStorage:', e);
+    }
+}
+
+/**
+ * Save priority list to localStorage
+ */
+function savePriorityList() {
+    try {
+        const data = {
+            list: priorityList,
+            counter: priorityIdCounter
+        };
+        localStorage.setItem(STORAGE_KEY_PRIORITY, JSON.stringify(data));
+    } catch (e) {
+        console.warn('Could not save priority list to localStorage:', e);
+    }
+}
+
+/**
+ * Load all saved state from localStorage
+ */
+function loadSavedState() {
+    // Load grid config
+    try {
+        const configStr = localStorage.getItem(STORAGE_KEY_CONFIG);
+        if (configStr) {
+            const config = JSON.parse(configStr);
+            if (config.reactor) {
+                currentReactor = config.reactor.id || '';
+                currentReactorTier = config.reactor.tier || '1';
+            }
+            if (config.aux1) {
+                currentAux1 = config.aux1.id || 'none';
+                currentAux1Tier = config.aux1.tier || '1';
+            }
+            if (config.aux2) {
+                currentAux2 = config.aux2.id || 'none';
+                currentAux2Tier = config.aux2.tier || '1';
+            }
+        }
+    } catch (e) {
+        console.warn('Could not load grid config from localStorage:', e);
+    }
+
+    // Load component quantities
+    try {
+        const compStr = localStorage.getItem(STORAGE_KEY_COMPONENTS);
+        if (compStr) {
+            const data = JSON.parse(compStr);
+            if (data.quantities) {
+                componentQuantities.clear();
+                for (const [key, qty] of Object.entries(data.quantities)) {
+                    componentQuantities.set(key, qty);
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('Could not load components from localStorage:', e);
+    }
+
+    // Load priority list
+    try {
+        const priorityStr = localStorage.getItem(STORAGE_KEY_PRIORITY);
+        if (priorityStr) {
+            const data = JSON.parse(priorityStr);
+            if (data.list) {
+                priorityList = data.list;
+            }
+            if (typeof data.counter === 'number') {
+                priorityIdCounter = data.counter;
+            }
+        }
+    } catch (e) {
+        console.warn('Could not load priority list from localStorage:', e);
+    }
+}
+
+/**
+ * Clear all persisted state from localStorage
+ */
+function clearAllPersistedState() {
+    try {
+        localStorage.removeItem(STORAGE_KEY_CONFIG);
+        localStorage.removeItem(STORAGE_KEY_COMPONENTS);
+        localStorage.removeItem(STORAGE_KEY_PRIORITY);
+    } catch (e) {
+        console.warn('Could not clear localStorage:', e);
+    }
+}
+
 /**
  * Initialize the UI
  */
 export function initUI() {
+    // Load saved state before rendering
+    loadSavedState();
+    
+    // Apply grid config if we have a saved reactor
+    if (currentReactor) {
+        applyGridConfig();
+    }
+    
     renderGrid();
     renderComponents();
     renderGridConfig();
@@ -52,62 +183,94 @@ export function initUI() {
     setupEventListeners();
 }
 
+// Track expanded power selector categories
+let expandedPowerCategory = null;
+
 /**
- * Render the grid configuration with custom dropdowns
+ * Render the grid configuration with accordion-style selectors
  */
 function renderGridConfig() {
     const reactors = getReactorList();
     const auxGenerators = getAuxGeneratorList();
     
-    // Render reactor dropdown
-    renderCustomDropdown('reactor-dropdown', reactors, currentReactor, currentReactorTier, 'reactor');
+    // Render reactor accordion
+    renderPowerAccordion('reactor-accordion-container', 'Reactor', reactors, currentReactor, currentReactorTier, 'reactor');
     
-    // Render aux generator dropdowns (disabled if no reactor selected)
+    // Render aux generator accordions (disabled if no reactor selected)
     const auxDisabled = !currentReactor;
-    renderCustomDropdown('aux1-dropdown', auxGenerators, currentAux1, currentAux1Tier, 'aux', auxDisabled);
-    renderCustomDropdown('aux2-dropdown', auxGenerators, currentAux2, currentAux2Tier, 'aux', auxDisabled);
+    renderPowerAccordion('aux1-accordion-container', 'Aux Generator 1', auxGenerators, currentAux1, currentAux1Tier, 'aux1', auxDisabled);
+    renderPowerAccordion('aux2-accordion-container', 'Aux Generator 2', auxGenerators, currentAux2, currentAux2Tier, 'aux2', auxDisabled);
     
     updateGridStats();
 }
 
 /**
- * Render a custom dropdown with grid previews
+ * Render a power selector accordion (reactor or aux generator)
  */
-function renderCustomDropdown(containerId, items, selectedId, selectedTier, type, disabled = false) {
+function renderPowerAccordion(containerId, label, items, selectedId, selectedTier, type, disabled = false) {
     const container = document.getElementById(containerId);
-    const optionsContainer = container.querySelector('.dropdown-options');
-    const textEl = container.querySelector('.dropdown-text');
+    container.innerHTML = '';
     
-    // Handle disabled state
-    if (disabled) {
-        container.classList.add('disabled');
-        textEl.textContent = 'Select reactor first';
-    } else {
-        container.classList.remove('disabled');
-    }
-    
-    optionsContainer.innerHTML = '';
-    
-    // For aux generators, add a "None" option first if not already there
-    if (type === 'aux') {
-        const noneOption = items.find(i => i.id === 'none');
-        if (noneOption && selectedId === 'none') {
-            textEl.textContent = 'None';
-        }
-    }
-    
-    // Update selected text
+    // Find selected item for display
     const selectedItem = items.find(i => i.id === selectedId && i.tier === selectedTier);
-    if (selectedItem) {
-        textEl.textContent = selectedItem.displayName;
-    } else if (type === 'reactor') {
-        textEl.textContent = '-- Select Reactor --';
+    const hasSelection = selectedItem && selectedId !== 'none' && selectedId !== '';
+    
+    // Determine if this category is expanded
+    const isExpanded = expandedPowerCategory === type;
+    
+    // Create category header
+    const header = document.createElement('div');
+    header.className = 'power-category';
+    if (isExpanded) header.classList.add('expanded');
+    if (hasSelection) header.classList.add('has-selection');
+    if (disabled) header.classList.add('disabled');
+    
+    const toggle = document.createElement('span');
+    toggle.className = 'power-category-toggle';
+    toggle.textContent = '▶';
+    
+    const nameEl = document.createElement('span');
+    nameEl.className = 'power-category-name';
+    nameEl.textContent = label;
+    
+    const selectionEl = document.createElement('span');
+    selectionEl.className = 'power-category-selection';
+    if (disabled) {
+        selectionEl.textContent = 'Select reactor first';
+    } else if (hasSelection) {
+        selectionEl.textContent = selectedItem.displayName;
+    } else if (type.startsWith('aux')) {
+        selectionEl.textContent = 'None';
+    } else {
+        selectionEl.textContent = 'Not selected';
     }
+    
+    header.appendChild(toggle);
+    header.appendChild(nameEl);
+    header.appendChild(selectionEl);
+    
+    // Click to expand/collapse
+    if (!disabled) {
+        header.addEventListener('click', () => {
+            if (expandedPowerCategory === type) {
+                expandedPowerCategory = null;
+            } else {
+                expandedPowerCategory = type;
+            }
+            renderGridConfig();
+        });
+    }
+    
+    container.appendChild(header);
+    
+    // Create content wrapper
+    const content = document.createElement('div');
+    content.className = 'power-category-content';
     
     // Create options
     for (const item of items) {
         const option = document.createElement('div');
-        option.className = 'dropdown-option';
+        option.className = 'power-option';
         if (item.id === selectedId && item.tier === selectedTier) {
             option.classList.add('selected');
         }
@@ -122,14 +285,14 @@ function renderCustomDropdown(containerId, items, selectedId, selectedTier, type
         
         // Info
         const info = document.createElement('div');
-        info.className = 'dropdown-option-info';
+        info.className = 'power-option-info';
         
         const name = document.createElement('div');
-        name.className = 'dropdown-option-name';
+        name.className = 'power-option-name';
         name.textContent = item.displayName;
         
         const stats = document.createElement('div');
-        stats.className = 'dropdown-option-stats';
+        stats.className = 'power-option-stats';
         if (item.id === 'none') {
             stats.textContent = 'No power';
         } else {
@@ -143,11 +306,13 @@ function renderCustomDropdown(containerId, items, selectedId, selectedTier, type
         // Click handler
         option.addEventListener('click', (e) => {
             e.stopPropagation();
-            handleDropdownSelect(containerId, item.id, item.tier);
+            handlePowerSelect(type, item.id, item.tier);
         });
         
-        optionsContainer.appendChild(option);
+        content.appendChild(option);
     }
+    
+    container.appendChild(content);
 }
 
 /**
@@ -155,14 +320,14 @@ function renderCustomDropdown(containerId, items, selectedId, selectedTier, type
  */
 function createGridPreview(grid) {
     const preview = document.createElement('div');
-    preview.className = 'dropdown-option-preview';
+    preview.className = 'power-option-preview';
     preview.style.gridTemplateColumns = `repeat(${grid[0].length}, 6px)`;
     preview.style.gridTemplateRows = `repeat(${grid.length}, 6px)`;
     
     for (let row = 0; row < grid.length; row++) {
         for (let col = 0; col < grid[row].length; col++) {
             const cell = document.createElement('div');
-            cell.className = 'dropdown-option-preview-cell';
+            cell.className = 'power-option-preview-cell';
             const value = grid[row][col];
             if (value === 2) {
                 cell.classList.add('protected');
@@ -179,22 +344,25 @@ function createGridPreview(grid) {
 }
 
 /**
- * Handle dropdown selection
+ * Handle power selector selection
  */
-function handleDropdownSelect(containerId, id, tier) {
-    const container = document.getElementById(containerId);
-    container.classList.remove('open');
-    
-    if (containerId === 'reactor-dropdown') {
+function handlePowerSelect(type, id, tier) {
+    if (type === 'reactor') {
         currentReactor = id;
         currentReactorTier = tier;
-    } else if (containerId === 'aux1-dropdown') {
+    } else if (type === 'aux1') {
         currentAux1 = id;
         currentAux1Tier = tier;
-    } else if (containerId === 'aux2-dropdown') {
+    } else if (type === 'aux2') {
         currentAux2 = id;
         currentAux2Tier = tier;
     }
+    
+    // Collapse the category after selection
+    expandedPowerCategory = null;
+    
+    // Save grid config to localStorage
+    saveGridConfig();
     
     renderGridConfig();
     applyGridConfig();
@@ -297,6 +465,32 @@ export function renderGrid() {
                 overlay.className = 'piece-overlay';
                 overlay.dataset.priorityId = componentInfo.priorityId;
                 overlay.title = componentInfo.componentName;
+                
+                // Check neighbors for border visibility (only show borders on outer edges)
+                const topKey = `${row-1},${col}`;
+                const bottomKey = `${row+1},${col}`;
+                const leftKey = `${row},${col-1}`;
+                const rightKey = `${row},${col+1}`;
+                
+                const topNeighbor = placedCellsMap.get(topKey);
+                const bottomNeighbor = placedCellsMap.get(bottomKey);
+                const leftNeighbor = placedCellsMap.get(leftKey);
+                const rightNeighbor = placedCellsMap.get(rightKey);
+                
+                // Add classes for internal edges (same component neighbor = no border needed)
+                if (topNeighbor && topNeighbor.priorityId === componentInfo.priorityId) {
+                    overlay.classList.add('no-border-top');
+                }
+                if (bottomNeighbor && bottomNeighbor.priorityId === componentInfo.priorityId) {
+                    overlay.classList.add('no-border-bottom');
+                }
+                if (leftNeighbor && leftNeighbor.priorityId === componentInfo.priorityId) {
+                    overlay.classList.add('no-border-left');
+                }
+                if (rightNeighbor && rightNeighbor.priorityId === componentInfo.priorityId) {
+                    overlay.classList.add('no-border-right');
+                }
+                
                 cell.appendChild(overlay);
             }
             
@@ -335,10 +529,15 @@ function renderPriorityList() {
     const container = document.getElementById('priority-list');
     container.innerHTML = '';
     
+    // Set up drop zone for component drag-and-drop
+    container.addEventListener('dragover', handleComponentDragOver);
+    container.addEventListener('dragleave', handleComponentDragLeave);
+    container.addEventListener('drop', handleComponentDrop);
+    
     if (priorityList.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'priority-empty';
-        empty.textContent = 'Add components to build your ship configuration';
+        empty.textContent = 'Drag components here or use quantity inputs';
         container.appendChild(empty);
         return;
     }
@@ -397,6 +596,7 @@ function renderPriorityList() {
         checkbox.checked = item.mandatory;
         checkbox.addEventListener('change', (e) => {
             item.mandatory = e.target.checked;
+            savePriorityList();
         });
         
         mandatory.appendChild(checkbox);
@@ -505,7 +705,61 @@ function handleDrop(e) {
     if (draggedIndex !== -1 && targetIndex !== -1) {
         const [removed] = priorityList.splice(draggedIndex, 1);
         priorityList.splice(targetIndex, 0, removed);
+        savePriorityList();
         renderPriorityList();
+    }
+}
+
+// Component drag-to-add handlers
+function handleComponentDragOver(e) {
+    // Check if this is a component being dragged from the components section
+    try {
+        const types = e.dataTransfer.types;
+        if (types.includes('application/json')) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+            document.getElementById('priority-list').classList.add('drop-target');
+        }
+    } catch (err) {
+        // Ignore errors during drag
+    }
+}
+
+function handleComponentDragLeave(e) {
+    // Only remove if leaving the container entirely
+    const container = document.getElementById('priority-list');
+    if (!container.contains(e.relatedTarget)) {
+        container.classList.remove('drop-target');
+    }
+}
+
+function handleComponentDrop(e) {
+    e.preventDefault();
+    document.getElementById('priority-list').classList.remove('drop-target');
+    
+    try {
+        const data = JSON.parse(e.dataTransfer.getData('application/json'));
+        if (data.type === 'component') {
+            const { componentId, tier } = data;
+            const key = `${componentId}_${tier}`;
+            const currentQty = componentQuantities.get(key) || 0;
+            const newQty = currentQty + 1;
+            
+            // Update quantity
+            componentQuantities.set(key, newQty);
+            
+            // Sync priority list
+            syncPriorityList(componentId, tier, newQty);
+            
+            // Re-render components to update the quantity display
+            renderComponents();
+            
+            // Clear solution since components changed
+            clearSolution();
+            placedPriorityIds.clear();
+        }
+    } catch (err) {
+        console.warn('Could not process drop:', err);
     }
 }
 
@@ -526,6 +780,10 @@ function removePriorityItem(id) {
     } else {
         componentQuantities.delete(key);
     }
+    
+    // Save to localStorage
+    savePriorityList();
+    saveComponents();
     
     renderComponents();
     renderPriorityList();
@@ -560,6 +818,10 @@ function syncPriorityList(componentId, tier, newQty) {
             }
         }
     }
+    
+    // Save to localStorage
+    savePriorityList();
+    saveComponents();
     
     renderPriorityList();
 }
@@ -730,6 +992,9 @@ function renderComponents() {
                 
                 const tierItem = document.createElement('div');
                 tierItem.className = 'tier-item';
+                tierItem.draggable = true;
+                tierItem.dataset.componentId = componentId;
+                tierItem.dataset.tier = tier;
                 
                 const tierLabel = document.createElement('span');
                 tierLabel.className = 'tier-label';
@@ -750,6 +1015,13 @@ function renderComponents() {
                 blocks.className = 'tier-blocks';
                 blocks.textContent = `${blockCount} blocks`;
                 
+                // Drag handle indicator
+                const dragHandle = document.createElement('span');
+                dragHandle.className = 'tier-drag-handle';
+                dragHandle.textContent = '⋮⋮';
+                dragHandle.title = 'Drag to add to Build Order';
+                
+                tierItem.appendChild(dragHandle);
                 tierItem.appendChild(tierLabel);
                 tierItem.appendChild(quantityInput);
                 tierItem.appendChild(preview);
@@ -758,6 +1030,20 @@ function renderComponents() {
                 // Quantity change handlers
                 quantityInput.addEventListener('change', handleQuantityChange);
                 quantityInput.addEventListener('input', handleQuantityChange);
+                
+                // Drag handlers for adding to priority list
+                tierItem.addEventListener('dragstart', (e) => {
+                    e.dataTransfer.setData('application/json', JSON.stringify({
+                        type: 'component',
+                        componentId: componentId,
+                        tier: tier
+                    }));
+                    tierItem.classList.add('dragging');
+                });
+                
+                tierItem.addEventListener('dragend', () => {
+                    tierItem.classList.remove('dragging');
+                });
                 
                 tiersContainer.appendChild(tierItem);
             }
@@ -911,28 +1197,6 @@ function setupEventListeners() {
         }
     });
     
-    // Custom dropdown toggles
-    document.querySelectorAll('.custom-dropdown').forEach(dropdown => {
-        const selected = dropdown.querySelector('.dropdown-selected');
-        selected.addEventListener('click', (e) => {
-            e.stopPropagation();
-            // Don't open if disabled
-            if (dropdown.classList.contains('disabled')) return;
-            // Close other dropdowns
-            document.querySelectorAll('.custom-dropdown').forEach(d => {
-                if (d !== dropdown) d.classList.remove('open');
-            });
-            dropdown.classList.toggle('open');
-        });
-    });
-    
-    // Close dropdowns when clicking outside
-    document.addEventListener('click', () => {
-        document.querySelectorAll('.custom-dropdown').forEach(d => {
-            d.classList.remove('open');
-        });
-    });
-    
     // Filter inputs
     document.getElementById('filter-name').addEventListener('input', (e) => {
         nameFilter = e.target.value;
@@ -949,25 +1213,38 @@ function setupEventListeners() {
         renderComponents();
     });
     
-    // Clear grid button
+    // Clear grid button - clears everything
     document.getElementById('clear-grid-btn').addEventListener('click', () => {
         clearGrid();
         clearSolution();
         placedPriorityIds.clear();
+        
+        // Reset reactor/aux selections
         currentReactor = '';
         currentReactorTier = '1';
         currentAux1 = 'none';
         currentAux1Tier = '1';
         currentAux2 = 'none';
         currentAux2Tier = '1';
+        expandedPowerCategory = null;
+        
+        // Clear components and priority
+        componentQuantities.clear();
+        priorityList = [];
+        priorityIdCounter = 0;
+        
+        // Clear all localStorage
+        clearAllPersistedState();
+        
         renderGridConfig();
         renderGrid();
+        renderComponents();
         renderPriorityList();
         updateGridStats();
-        updateStatus('Grid cleared', 'info');
+        updateStatus('All cleared', 'info');
     });
     
-    // Clear solution button
+    // Clear solution button - only clears the solution visualization
     document.getElementById('clear-solution-btn').addEventListener('click', () => {
         clearSolution();
         placedPriorityIds.clear();

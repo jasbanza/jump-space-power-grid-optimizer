@@ -19,34 +19,10 @@
                 <p class="instructions">Green = powered, Blue = protected (prioritized by solver)</p>
                 
                 <div class="grid-with-selectors">
-                    <div class="grid-selectors">
-                        <div class="selector-row reactor-selector">
-                            <div id="reactor-dropdown" class="custom-dropdown" data-type="reactor">
-                                <div class="dropdown-selected">
-                                    <span class="dropdown-text">-- Select Reactor --</span>
-                                    <span class="dropdown-arrow">▼</span>
-                                </div>
-                                <div class="dropdown-options"></div>
-                            </div>
-                        </div>
-                        <div class="selector-row aux1-selector">
-                            <div id="aux1-dropdown" class="custom-dropdown" data-type="aux1">
-                                <div class="dropdown-selected">
-                                    <span class="dropdown-text">None</span>
-                                    <span class="dropdown-arrow">▼</span>
-                                </div>
-                                <div class="dropdown-options"></div>
-                            </div>
-                        </div>
-                        <div class="selector-row aux2-selector">
-                            <div id="aux2-dropdown" class="custom-dropdown" data-type="aux2">
-                                <div class="dropdown-selected">
-                                    <span class="dropdown-text">None</span>
-                                    <span class="dropdown-arrow">▼</span>
-                                </div>
-                                <div class="dropdown-options"></div>
-                            </div>
-                        </div>
+                    <div class="power-selectors">
+                        <div id="reactor-accordion-container"></div>
+                        <div id="aux1-accordion-container"></div>
+                        <div id="aux2-accordion-container"></div>
                     </div>
                     <div id="grid-container"></div>
                 </div>

@@ -14,6 +14,10 @@
 
 import { getAllRotations, getOccupiedCells, countCells } from './components.js';
 
+// Solver limits to prevent freezing
+const MAX_BACKTRACK_ITERATIONS = 50000;
+const MAX_MANDATORY_PIECES = 8; // Hard limit on mandatory pieces to prevent exponential blowup
+
 /**
  * Check if a cell is powered (value 1 or 2)
  */
@@ -149,8 +153,16 @@ function tryPlacePiece(piece, gridState, occupiedCells, gridSize) {
 /**
  * Try backtracking to fit mandatory pieces
  * Attempts to find a configuration where all mandatory pieces can fit
+ * Uses iteration counter to prevent infinite loops
  */
-function backtrackMandatory(mandatoryPieces, pieceIndex, gridState, occupiedCells, gridSize, placements) {
+function backtrackMandatory(mandatoryPieces, pieceIndex, gridState, occupiedCells, gridSize, placements, iterationCounter) {
+    // Check iteration limit
+    iterationCounter.count++;
+    if (iterationCounter.count > MAX_BACKTRACK_ITERATIONS) {
+        iterationCounter.exceeded = true;
+        return null;
+    }
+    
     if (pieceIndex >= mandatoryPieces.length) {
         return [...placements];
     }
@@ -158,7 +170,16 @@ function backtrackMandatory(mandatoryPieces, pieceIndex, gridState, occupiedCell
     const piece = mandatoryPieces[pieceIndex];
     const validPlacements = getValidPlacements(piece, gridState, occupiedCells, gridSize);
     
-    for (const placement of validPlacements) {
+    // Limit placements to try (reduce search space)
+    const placementsToTry = validPlacements.slice(0, 20);
+    
+    for (const placement of placementsToTry) {
+        // Check iteration limit before each placement attempt
+        if (iterationCounter.count > MAX_BACKTRACK_ITERATIONS) {
+            iterationCounter.exceeded = true;
+            return null;
+        }
+        
         const placedKeys = placePiece(placement.shape, placement.row, placement.col, occupiedCells);
         placements.push({
             pieceId: piece.id,
@@ -174,7 +195,7 @@ function backtrackMandatory(mandatoryPieces, pieceIndex, gridState, occupiedCell
         });
         
         const result = backtrackMandatory(
-            mandatoryPieces, pieceIndex + 1, gridState, occupiedCells, gridSize, placements
+            mandatoryPieces, pieceIndex + 1, gridState, occupiedCells, gridSize, placements, iterationCounter
         );
         
         if (result !== null) {
@@ -234,12 +255,28 @@ export function solve(selectedPieces, gridState, gridSize) {
     const occupiedCells = new Set();
     let solution = [];
     let mandatoryFailed = false;
+    let timeoutWarning = '';
+    
+    // Check for too many mandatory pieces
+    if (mandatoryPieces.length > MAX_MANDATORY_PIECES) {
+        return {
+            success: false,
+            solution: [],
+            message: `Too many mandatory components (${mandatoryPieces.length}). Maximum is ${MAX_MANDATORY_PIECES}. Reduce mandatory items or uncheck some.`
+        };
+    }
     
     // Step 1: Try to place all mandatory pieces using backtracking
     if (mandatoryPieces.length > 0) {
+        const iterationCounter = { count: 0, exceeded: false };
+        
         const mandatorySolution = backtrackMandatory(
-            mandatoryPieces, 0, gridState, occupiedCells, gridSize, []
+            mandatoryPieces, 0, gridState, occupiedCells, gridSize, [], iterationCounter
         );
+        
+        if (iterationCounter.exceeded) {
+            timeoutWarning = ' (search limit reached - try fewer mandatory items)';
+        }
         
         if (mandatorySolution === null) {
             // Could not fit all mandatory pieces
@@ -301,6 +338,9 @@ export function solve(selectedPieces, gridState, gridSize) {
     if (protectedCount > 0) {
         message += ` (${coveredProtected}/${protectedCount} protected)`;
     }
+    
+    // Add timeout warning if applicable
+    message += timeoutWarning;
     
     return {
         success: componentsPlaced > 0,
