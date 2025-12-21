@@ -230,23 +230,6 @@ Edit `data/auxGenerators.json` - now supports tiers:
 
 ---
 
-## Layout
-
-```
-+------------------+   +--------------+   +----------------+
-|   POWER GRID     |   |  BUILD ORDER |   |   COMPONENTS   |
-|                  |   |              |   |                |
-| [Reactor ▼]      |   | ≡ Comp 1  ☑  |   | ▶ SENSORS (3)  |
-| ████████████     |   | ≡ Comp 2  ☐  |   | ▶ ENGINES (4)  |
-| ████████████     |   | ≡ Comp 3  ☐  |   | ▼ WEAPONS (5)  |
-| ████████████     |   |              |   |   ├ Weapon A   |
-| [Aux 1 ▼]        |   | [  SOLVE  ]  |   |   └ Weapon B   |
-| ████████████     |   |              |   |                |
-| [Aux 2 ▼]        |   | Status msg   |   | [Filters]      |
-| ████████████     |   +--------------+   +----------------+
-+------------------+
-```
-
 ## Project Structure
 
 ```
