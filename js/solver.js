@@ -27,9 +27,8 @@ function isPowered(value) {
 
 /**
  * Check if a piece can be placed at a given position
- * @param protectOnly - if true, only allow placement on protected cells (value 2)
  */
-function canPlace(shape, startRow, startCol, gridState, occupiedCells, gridSize, protectOnly = false) {
+function canPlace(shape, startRow, startCol, gridState, occupiedCells, gridSize) {
     const cells = getOccupiedCells(shape, startRow, startCol);
     
     for (const cell of cells) {
@@ -38,15 +37,8 @@ function canPlace(shape, startRow, startCol, gridState, occupiedCells, gridSize,
         }
         const cellValue = gridState[cell.row][cell.col];
         
-        // If protectOnly, require all cells to be protected (value 2)
-        if (protectOnly) {
-            if (cellValue !== 2) {
-                return false;
-            }
-        } else {
-            if (!isPowered(cellValue)) {
-                return false;
-            }
+        if (!isPowered(cellValue)) {
+            return false;
         }
         
         const key = `${cell.row},${cell.col}`;
@@ -101,9 +93,9 @@ function removePiece(placedKeys, occupiedCells) {
 
 /**
  * Get all valid placements for a piece, sorted by protected cell coverage (descending)
- * @param protectOnly - if true, only allow placement on protected cells
+ * Components with protect=true get prioritized via this sorting - they're not restricted to protected cells
  */
-function getValidPlacements(piece, gridState, occupiedCells, gridSize, protectOnly = false) {
+function getValidPlacements(piece, gridState, occupiedCells, gridSize) {
     const placements = [];
     const rotations = getAllRotations(piece.shape);
     
@@ -114,7 +106,7 @@ function getValidPlacements(piece, gridState, occupiedCells, gridSize, protectOn
         
         for (let row = 0; row <= gridSize - rows; row++) {
             for (let col = 0; col <= gridSize - cols; col++) {
-                if (canPlace(shape, row, col, gridState, occupiedCells, gridSize, protectOnly)) {
+                if (canPlace(shape, row, col, gridState, occupiedCells, gridSize)) {
                     const protectedCount = countProtectedCells(shape, row, col, gridState);
                     placements.push({
                         shape,
@@ -129,6 +121,7 @@ function getValidPlacements(piece, gridState, occupiedCells, gridSize, protectOn
     }
     
     // Sort by protected cell coverage (highest first)
+    // This ensures components naturally prefer protected cells
     placements.sort((a, b) => b.protectedCount - a.protectedCount);
     
     return placements;
@@ -136,10 +129,11 @@ function getValidPlacements(piece, gridState, occupiedCells, gridSize, protectOn
 
 /**
  * Try to place a single piece, return placement or null
+ * Note: protect flag means "prioritize protected cells" not "restrict to protected cells"
+ * Prioritization is handled by sorting placements by protected cell count
  */
 function tryPlacePiece(piece, gridState, occupiedCells, gridSize) {
-    const protectOnly = piece.protect || false;
-    const validPlacements = getValidPlacements(piece, gridState, occupiedCells, gridSize, protectOnly);
+    const validPlacements = getValidPlacements(piece, gridState, occupiedCells, gridSize);
     
     if (validPlacements.length === 0) {
         return null;
@@ -181,8 +175,8 @@ function backtrackMandatory(mandatoryPieces, pieceIndex, gridState, occupiedCell
     }
     
     const piece = mandatoryPieces[pieceIndex];
-    const protectOnly = piece.protect || false;
-    const validPlacements = getValidPlacements(piece, gridState, occupiedCells, gridSize, protectOnly);
+    // protect flag = prioritize protected cells (handled by sorting), not restrict to them
+    const validPlacements = getValidPlacements(piece, gridState, occupiedCells, gridSize);
     
     // Limit placements to try (reduce search space)
     const placementsToTry = validPlacements.slice(0, 20);
@@ -238,8 +232,8 @@ function backtrackAll(pieces, pieceIndex, gridState, occupiedCells, gridSize, pl
     }
     
     const piece = pieces[pieceIndex];
-    const protectOnly = piece.protect || false;
-    const validPlacements = getValidPlacements(piece, gridState, occupiedCells, gridSize, protectOnly);
+    // protect flag = prioritize protected cells (handled by sorting), not restrict to them
+    const validPlacements = getValidPlacements(piece, gridState, occupiedCells, gridSize);
     
     // Limit placements to try
     const placementsToTry = validPlacements.slice(0, 15);
@@ -417,25 +411,47 @@ export function solve(selectedPieces, gridState, gridSize) {
             }
         }
         
-        // Step 2: Try backtracking for optional pieces too (if not too many)
+        // Step 2: Try to place ALL optional pieces (no skipping first, then allow skipping)
         if (optionalPieces.length > 0 && optionalPieces.length <= MAX_MANDATORY_PIECES) {
             const iterationCounter = { count: 0, exceeded: false };
-            const optionalSolution = backtrackAll(
+            
+            // First try: place ALL optional pieces (no skipping)
+            const fullOptionalSolution = backtrackMandatory(
                 optionalPieces, 0, gridState, occupiedCells, gridSize, [], iterationCounter
             );
             
-            if (optionalSolution !== null) {
-                solution = solution.concat(optionalSolution);
+            if (fullOptionalSolution !== null) {
+                // All optional pieces placed!
+                solution = solution.concat(fullOptionalSolution);
             } else {
-                // Fall back to greedy for optional pieces
-                for (const piece of optionalPieces) {
-                    const placement = tryPlacePiece(piece, gridState, occupiedCells, gridSize);
-                    if (placement) {
-                        solution.push(placement);
+                // Fallback: allow skipping with backtrackAll
+                occupiedCells.clear();
+                // Re-place mandatory pieces first
+                for (const p of solution) {
+                    for (const cell of p.cells) {
+                        occupiedCells.add(`${cell.row},${cell.col}`);
+                    }
+                }
+                iterationCounter.count = 0;
+                iterationCounter.exceeded = false;
+                
+                const partialOptionalSolution = backtrackAll(
+                    optionalPieces, 0, gridState, occupiedCells, gridSize, [], iterationCounter
+                );
+                
+                if (partialOptionalSolution !== null) {
+                    solution = solution.concat(partialOptionalSolution);
+                } else {
+                    // Fall back to greedy for optional pieces
+                    for (const piece of optionalPieces) {
+                        const placement = tryPlacePiece(piece, gridState, occupiedCells, gridSize);
+                        if (placement) {
+                            solution.push(placement);
+                        }
                     }
                 }
             }
-        } else {
+        } else if (optionalPieces.length > 0) {
             // Too many optional pieces, use greedy
             for (const piece of optionalPieces) {
                 const placement = tryPlacePiece(piece, gridState, occupiedCells, gridSize);

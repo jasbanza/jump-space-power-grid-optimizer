@@ -84,11 +84,12 @@ Mark components as **mandatory** ("Must" checkbox) to indicate "must have":
 - Non-mandatory components are placed greedily after mandatory ones
 - If mandatory components can't all fit, they're highlighted in red
 
-### Protected-Only Components
-Mark components as **protected-only** ("Prot" checkbox) to constrain placement:
-- The component will ONLY be placed on protected (blue) cells
-- Useful for critical components that must be in protected power slots
-- If no valid placement exists on protected cells, the component won't be placed
+### Shield Priority Components
+Mark components with **shield priority** (🛡️ checkbox) to prioritize protected cells:
+- The component will be **prioritized** for placement on protected (blue) cells
+- Does NOT restrict placement - component can still be placed on green cells if needed
+- Useful for marking critical components that should get protected power slots first
+- When multiple components have 🛡️ checked, they share protected cells based on build order
 
 ### Individual Instances
 Each component instance is tracked separately:

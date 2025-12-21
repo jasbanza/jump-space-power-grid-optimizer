@@ -32,8 +32,8 @@ A web-based tool to optimize component placement on your ship's power grid in Ju
 ### Smart Solver
 - **Priority-Based Placement**: Respects your build order
 - **Mandatory First**: Uses backtracking to fit all mandatory components
-- **Protected Cell Priority**: Prefers placing on protected (blue) cells
-- **Protected-Only Mode**: Components marked "Prot" only place on blue cells
+- **Protected Cell Priority**: All components prefer protected (blue) cells when possible
+- **Shield Priority (🛡️)**: Components with shield checked get visual indicator and are prioritized for protected cells based on build order
 - **Semi-Transparent Overlays**: See power cells beneath placed components
 
 ---
@@ -124,7 +124,7 @@ This ensures the solver **always tries to place everything first** before giving
 After solving:
 - ✅ **Green border**: Successfully placed
 - ❌ **Red border**: Could not be placed  
-- 🔵 **Blue border**: Protected placement (🛡️ checkbox enabled)
+- 🔵 **Blue border**: Component has shield priority (🛡️ checkbox enabled) - prioritizes protected cells
 
 ## Usage
 
