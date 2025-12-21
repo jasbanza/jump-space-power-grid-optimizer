@@ -421,9 +421,9 @@ h2 {
 }
 
 .grid-cell .piece-overlay.highlighted {
-    border-color: var(--accent-green);
+    border-color: #ffdd00;
     border-width: 3px;
-    box-shadow: 0 0 10px var(--accent-green-glow);
+    box-shadow: 0 0 12px rgba(255, 221, 0, 0.6);
 }
 
 /* Restore internal transparent borders when highlighted */
@@ -550,8 +550,8 @@ h2 {
 }
 
 .priority-item.highlighted {
-    background-color: var(--accent-green-glow);
-    border-color: var(--accent-green);
+    background-color: rgba(255, 221, 0, 0.15);
+    border-color: #ffdd00;
 }
 
 .priority-item.not-placed {
