@@ -25,6 +25,8 @@
     --btn-primary-hover: #00ff88;
     --btn-secondary: #333340;
     --btn-secondary-hover: #444455;
+    --btn-danger: #cc3333;
+    --btn-danger-hover: #ff4444;
     --grid-cell-size: 40px;
 }
 
@@ -543,6 +545,16 @@ h2 {
     background-color: var(--btn-secondary-hover);
 }
 
+.btn-danger {
+    background-color: var(--btn-danger);
+    color: var(--text-primary);
+}
+
+.btn-danger:hover {
+    background-color: var(--btn-danger-hover);
+    box-shadow: 0 0 10px rgba(255, 68, 68, 0.4);
+}
+
 .btn:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -790,7 +802,7 @@ h2 {
 }
 
 #filter-name {
-    width: 80px;
+    width: 100px;
     flex: none;
 }
 
@@ -800,7 +812,7 @@ h2 {
 }
 
 #filter-tier {
-    width: 80px;
+    width: 90px;
     flex: none;
 }
 
