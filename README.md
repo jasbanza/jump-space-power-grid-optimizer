@@ -36,6 +36,96 @@ A web-based tool to optimize component placement on your ship's power grid in Ju
 - **Protected-Only Mode**: Components marked "Prot" only place on blue cells
 - **Semi-Transparent Overlays**: See power cells beneath placed components
 
+---
+
+## Solver Algorithm
+
+The solver uses a multi-stage approach to maximize component placement while respecting constraints.
+
+### Flowchart
+
+```mermaid
+flowchart TD
+    START([START: Solve]) --> SEPARATE[Separate pieces:<br/>• Mandatory 🔒<br/>• Optional]
+    
+    SEPARATE --> CHECK{No mandatory<br/>AND ≤8 pieces?}
+    
+    CHECK -->|Yes| PHASE1[Phase 1:<br/>backtrackMandatory<br/>treat ALL as mandatory]
+    CHECK -->|No| MANDATORY[backtrackMandatory<br/>on mandatory pieces]
+    
+    PHASE1 --> ALL_PLACED{All placed?}
+    
+    ALL_PLACED -->|Yes| DONE[✅ Return solution]
+    ALL_PLACED -->|No| PHASE2[Phase 2:<br/>backtrackAll<br/>allows skipping]
+    
+    PHASE2 --> FOUND{Found solution?}
+    FOUND -->|Yes| DONE
+    FOUND -->|No| GREEDY1[Greedy fallback]
+    GREEDY1 --> DONE
+    
+    MANDATORY --> MAND_OK{All mandatory<br/>placed?}
+    MAND_OK -->|Yes| OPTIONAL[backtrackAll<br/>on optional pieces]
+    MAND_OK -->|No| GREEDY2[Greedy fallback<br/>for mandatory]
+    GREEDY2 --> OPTIONAL
+    
+    OPTIONAL --> OPT_OK{Found solution?}
+    OPT_OK -->|Yes| DONE
+    OPT_OK -->|No| GREEDY3[Greedy fallback<br/>for optional]
+    GREEDY3 --> DONE
+
+    style START fill:#2d5a27
+    style DONE fill:#2d5a27
+    style PHASE1 fill:#1a4a6e
+    style PHASE2 fill:#4a3a1e
+    style GREEDY1 fill:#5a2a2a
+    style GREEDY2 fill:#5a2a2a
+    style GREEDY3 fill:#5a2a2a
+```
+
+### Algorithm Details
+
+#### 1. Backtracking Strategy
+
+The solver uses **backtracking** to find valid configurations:
+
+| Function | Purpose | Skipping Allowed? |
+|----------|---------|-------------------|
+| `backtrackMandatory()` | Place all pieces (no skipping) | ❌ No |
+| `backtrackAll()` | Place pieces, skip if needed | ✅ Yes (non-mandatory) |
+
+#### 2. Placement Priority
+
+For each piece, valid placements are sorted by:
+1. **Protected cell coverage** (highest first) - prefers blue cells
+2. Components with 🛡️ checked **only** place on protected (blue) cells
+
+#### 3. Two-Phase Approach (No Mandatory Pieces)
+
+When no pieces are marked mandatory and total ≤8:
+
+1. **Phase 1**: Try to place ALL pieces using `backtrackMandatory()` (no skipping)
+   - If successful → done! All pieces placed.
+   
+2. **Phase 2**: If Phase 1 fails, use `backtrackAll()` (allows skipping)
+   - Returns best solution even if some pieces can't fit.
+
+This ensures the solver **always tries to place everything first** before giving up on any piece.
+
+#### 4. Limits & Performance
+
+| Limit | Value | Purpose |
+|-------|-------|---------|
+| `MAX_BACKTRACK_ITERATIONS` | 50,000 | Prevents browser freeze |
+| `MAX_MANDATORY_PIECES` | 8 | Limits exponential blowup |
+| Placements per piece | 15-20 | Reduces search space |
+
+#### 5. Visual Indicators
+
+After solving:
+- ✅ **Green border**: Successfully placed
+- ❌ **Red border**: Could not be placed  
+- 🔵 **Blue border**: Protected placement (🛡️ checkbox enabled)
+
 ## Usage
 
 1. **Configure your grid**

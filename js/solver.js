@@ -341,22 +341,39 @@ export function solve(selectedPieces, gridState, gridSize) {
     // If few enough pieces, try to place ALL of them using backtracking
     if (useFullBacktrack && mandatoryPieces.length === 0) {
         const iterationCounter = { count: 0, exceeded: false };
-        const fullSolution = backtrackAll(
+        
+        // First try: place ALL pieces (treat as mandatory - no skipping allowed)
+        const fullSolution = backtrackMandatory(
             selectedPieces, 0, gridState, occupiedCells, gridSize, [], iterationCounter
         );
         
-        if (iterationCounter.exceeded) {
-            timeoutWarning = ' (search limit reached)';
-        }
-        
         if (fullSolution !== null) {
+            // All pieces placed successfully
             solution = fullSolution;
         } else {
-            // Fall back to greedy
-            for (const piece of selectedPieces) {
-                const placement = tryPlacePiece(piece, gridState, occupiedCells, gridSize);
-                if (placement) {
-                    solution.push(placement);
+            // Fallback: allow skipping with backtrackAll
+            occupiedCells.clear();
+            iterationCounter.count = 0;
+            iterationCounter.exceeded = false;
+            
+            const partialSolution = backtrackAll(
+                selectedPieces, 0, gridState, occupiedCells, gridSize, [], iterationCounter
+            );
+            
+            if (iterationCounter.exceeded) {
+                timeoutWarning = ' (search limit reached)';
+            }
+            
+            if (partialSolution !== null) {
+                solution = partialSolution;
+            } else {
+                // Fall back to greedy
+                occupiedCells.clear();
+                for (const piece of selectedPieces) {
+                    const placement = tryPlacePiece(piece, gridState, occupiedCells, gridSize);
+                    if (placement) {
+                        solution.push(placement);
+                    }
                 }
             }
         }

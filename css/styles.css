@@ -444,6 +444,48 @@ h2 {
     border-right-color: transparent;
 }
 
+/* Protected component overlays - blue border */
+.grid-cell .piece-overlay.protected-component {
+    border-color: var(--accent-blue);
+}
+
+.grid-cell .piece-overlay.protected-component.no-border-top {
+    border-top-color: transparent;
+}
+
+.grid-cell .piece-overlay.protected-component.no-border-bottom {
+    border-bottom-color: transparent;
+}
+
+.grid-cell .piece-overlay.protected-component.no-border-left {
+    border-left-color: transparent;
+}
+
+.grid-cell .piece-overlay.protected-component.no-border-right {
+    border-right-color: transparent;
+}
+
+/* Yellow takes priority on hover for protected components */
+.grid-cell .piece-overlay.protected-component.highlighted {
+    border-color: #ffdd00;
+}
+
+.grid-cell .piece-overlay.protected-component.highlighted.no-border-top {
+    border-top-color: transparent;
+}
+
+.grid-cell .piece-overlay.protected-component.highlighted.no-border-bottom {
+    border-bottom-color: transparent;
+}
+
+.grid-cell .piece-overlay.protected-component.highlighted.no-border-left {
+    border-left-color: transparent;
+}
+
+.grid-cell .piece-overlay.protected-component.highlighted.no-border-right {
+    border-right-color: transparent;
+}
+
 /* Piece labels on grid */
 .piece-label {
     position: absolute;
@@ -564,6 +606,11 @@ h2 {
 
 .priority-item.placed {
     border-color: var(--accent-green-dim);
+}
+
+.priority-item.protected-placed {
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 6px rgba(0, 150, 255, 0.4);
 }
 
 .priority-drag-handle {

@@ -419,11 +419,16 @@ export function renderGrid() {
         const priorityId = placement.priorityId;
         let minRow = Infinity, maxRow = -1, minCol = Infinity, maxCol = -1;
         
+        // Look up protect status from priority list
+        const priorityItem = priorityList.find(p => p.id === priorityId);
+        const isProtected = priorityItem ? priorityItem.protect : false;
+        
         for (const cell of placement.cells) {
             const key = `${cell.row},${cell.col}`;
             placedCellsMap.set(key, {
                 priorityId: priorityId,
-                componentName: placement.componentName || placement.pieceName
+                componentName: placement.componentName || placement.pieceName,
+                protect: isProtected
             });
             
             minRow = Math.min(minRow, cell.row);
@@ -465,6 +470,11 @@ export function renderGrid() {
                 overlay.className = 'piece-overlay';
                 overlay.dataset.priorityId = componentInfo.priorityId;
                 overlay.title = componentInfo.componentName;
+                
+                // Add protected class if component is marked as protected
+                if (componentInfo.protect) {
+                    overlay.classList.add('protected-component');
+                }
                 
                 // Check neighbors for border visibility (only show borders on outer edges)
                 const topKey = `${row-1},${col}`;
@@ -569,6 +579,9 @@ function renderPriorityList() {
         
         if (isPlaced) {
             div.classList.add('placed');
+            if (item.protect) {
+                div.classList.add('protected-placed');
+            }
         } else if (placedPriorityIds.size > 0) {
             // Only mark as not-placed if solver has run
             div.classList.add('not-placed');
@@ -1211,7 +1224,8 @@ function getSelectedComponentsFromPriority() {
             name: `${component.name} Mk ${item.tier}`,
             componentName: `${component.name} Mk ${item.tier}`,
             shape: component.tiers[item.tier].shape,
-            mandatory: item.mandatory
+            mandatory: item.mandatory,
+            protect: item.protect || false
         });
     }
     
