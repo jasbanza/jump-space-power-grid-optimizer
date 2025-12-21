@@ -1,0 +1,254 @@
+/**
+ * UI Event Handlers and Rendering for Power Grid Optimizer
+ */
+
+import { 
+    getGridState, getGridSize, toggleCell, clearGrid, 
+    setSolution, getSolution, clearSolution 
+} from './grid.js';
+import { PIECES } from './pieces.js';
+import { solve } from './solver.js';
+
+// Track selected pieces
+const selectedPieces = new Set();
+
+// Piece colors for visualization
+const PIECE_COLORS = [
+    'piece-color-0', 'piece-color-1', 'piece-color-2', 'piece-color-3',
+    'piece-color-4', 'piece-color-5', 'piece-color-6', 'piece-color-7',
+    'piece-color-8', 'piece-color-9'
+];
+
+/**
+ * Initialize the UI
+ */
+export function initUI() {
+    renderGrid();
+    renderPieces();
+    setupEventListeners();
+}
+
+/**
+ * Render the grid
+ */
+export function renderGrid() {
+    const container = document.getElementById('grid-container');
+    const gridState = getGridState();
+    const gridSize = getGridSize();
+    const solution = getSolution();
+    
+    // Build a map of placed pieces for quick lookup
+    const placedCellsMap = new Map();
+    solution.forEach((placement, idx) => {
+        for (const cell of placement.cells) {
+            const key = `${cell.row},${cell.col}`;
+            placedCellsMap.set(key, {
+                colorClass: PIECE_COLORS[idx % PIECE_COLORS.length],
+                pieceName: placement.pieceName
+            });
+        }
+    });
+    
+    container.innerHTML = '';
+    
+    for (let row = 0; row < gridSize; row++) {
+        for (let col = 0; col < gridSize; col++) {
+            const cell = document.createElement('div');
+            cell.className = 'grid-cell';
+            cell.dataset.row = row;
+            cell.dataset.col = col;
+            
+            if (gridState[row][col]) {
+                cell.classList.add('powered');
+            }
+            
+            // Add piece overlay if this cell has a placed piece
+            const key = `${row},${col}`;
+            if (placedCellsMap.has(key)) {
+                const pieceInfo = placedCellsMap.get(key);
+                cell.classList.add('has-piece');
+                const overlay = document.createElement('div');
+                overlay.className = `piece-overlay ${pieceInfo.colorClass}`;
+                overlay.title = pieceInfo.pieceName;
+                cell.appendChild(overlay);
+            }
+            
+            container.appendChild(cell);
+        }
+    }
+}
+
+/**
+ * Render the pieces selection panel
+ */
+function renderPieces() {
+    const container = document.getElementById('pieces-container');
+    container.innerHTML = '';
+    
+    for (const [key, piece] of Object.entries(PIECES)) {
+        const item = document.createElement('div');
+        item.className = 'piece-item';
+        item.dataset.pieceId = piece.id;
+        
+        // Checkbox
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'piece-checkbox';
+        checkbox.id = `piece-${piece.id}`;
+        checkbox.checked = selectedPieces.has(piece.id);
+        
+        // Preview
+        const preview = createPiecePreview(piece.shape);
+        
+        // Name
+        const name = document.createElement('span');
+        name.className = 'piece-name';
+        name.textContent = piece.name;
+        
+        item.appendChild(checkbox);
+        item.appendChild(preview);
+        item.appendChild(name);
+        
+        // Click handler for the whole item
+        item.addEventListener('click', (e) => {
+            if (e.target !== checkbox) {
+                checkbox.checked = !checkbox.checked;
+            }
+            updatePieceSelection(piece.id, checkbox.checked);
+            item.classList.toggle('selected', checkbox.checked);
+        });
+        
+        container.appendChild(item);
+    }
+}
+
+/**
+ * Create a preview element for a piece shape
+ * @param {number[][]} shape - The piece shape
+ * @returns {HTMLElement} - Preview element
+ */
+function createPiecePreview(shape) {
+    const preview = document.createElement('div');
+    preview.className = 'piece-preview';
+    preview.style.gridTemplateColumns = `repeat(${shape[0].length}, 12px)`;
+    preview.style.gridTemplateRows = `repeat(${shape.length}, 12px)`;
+    
+    for (let row = 0; row < shape.length; row++) {
+        for (let col = 0; col < shape[row].length; col++) {
+            const cell = document.createElement('div');
+            cell.className = 'piece-preview-cell';
+            cell.classList.add(shape[row][col] ? 'filled' : 'empty');
+            preview.appendChild(cell);
+        }
+    }
+    
+    return preview;
+}
+
+/**
+ * Update piece selection state
+ * @param {string} pieceId - Piece ID
+ * @param {boolean} selected - Whether selected
+ */
+function updatePieceSelection(pieceId, selected) {
+    if (selected) {
+        selectedPieces.add(pieceId);
+    } else {
+        selectedPieces.delete(pieceId);
+    }
+}
+
+/**
+ * Get selected pieces as array
+ * @returns {Array} - Array of selected piece objects
+ */
+function getSelectedPieces() {
+    return Array.from(selectedPieces)
+        .map(id => PIECES[id])
+        .filter(piece => piece !== undefined);
+}
+
+/**
+ * Set up event listeners
+ */
+function setupEventListeners() {
+    // Grid cell click
+    document.getElementById('grid-container').addEventListener('click', (e) => {
+        const cell = e.target.closest('.grid-cell');
+        if (cell) {
+            const row = parseInt(cell.dataset.row);
+            const col = parseInt(cell.dataset.col);
+            toggleCell(row, col);
+            // Clear solution when grid changes
+            clearSolution();
+            renderGrid();
+        }
+    });
+    
+    // Clear grid button
+    document.getElementById('clear-grid-btn').addEventListener('click', () => {
+        clearGrid();
+        clearSolution();
+        renderGrid();
+        updateStatus('Grid cleared', 'info');
+    });
+    
+    // Clear solution button
+    document.getElementById('clear-solution-btn').addEventListener('click', () => {
+        clearSolution();
+        renderGrid();
+        updateStatus('Solution cleared', 'info');
+    });
+    
+    // Solve button
+    document.getElementById('solve-btn').addEventListener('click', () => {
+        runSolver();
+    });
+}
+
+/**
+ * Run the solver
+ */
+function runSolver() {
+    const selectedPiecesList = getSelectedPieces();
+    const gridState = getGridState();
+    const gridSize = getGridSize();
+    const requireAll = document.getElementById('require-all-checkbox').checked;
+    
+    // Clear previous solution
+    clearSolution();
+    
+    // Update UI to show solving
+    const solveBtn = document.getElementById('solve-btn');
+    solveBtn.disabled = true;
+    solveBtn.textContent = 'Solving...';
+    updateStatus('Searching for solution...', 'info');
+    
+    // Run solver (use setTimeout to allow UI update)
+    setTimeout(() => {
+        const result = solve(selectedPiecesList, gridState, gridSize, requireAll);
+        
+        if (result.success) {
+            setSolution(result.solution);
+            updateStatus(result.message, 'success');
+        } else {
+            updateStatus(result.message, 'error');
+        }
+        
+        renderGrid();
+        
+        solveBtn.disabled = false;
+        solveBtn.textContent = 'Solve';
+    }, 50);
+}
+
+/**
+ * Update the status message
+ * @param {string} message - Status message
+ * @param {string} type - Message type ('success', 'error', 'info')
+ */
+function updateStatus(message, type) {
+    const status = document.getElementById('solve-status');
+    status.textContent = message;
+    status.className = 'solve-status ' + type;
+}

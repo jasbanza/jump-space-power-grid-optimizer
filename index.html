@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Jump Space Power Grid Optimizer</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Jump Space Power Grid Optimizer</h1>
+            <p class="subtitle">Optimize your ship's power grid component placement</p>
+        </header>
+
+        <main>
+            <div class="grid-section">
+                <h2>Power Grid</h2>
+                <p class="instructions">Click cells to toggle powered (green) / unpowered (black)</p>
+                <div id="grid-container"></div>
+                <div class="grid-controls">
+                    <button id="clear-grid-btn" class="btn btn-secondary">Clear Grid</button>
+                    <button id="clear-solution-btn" class="btn btn-secondary">Clear Solution</button>
+                </div>
+            </div>
+
+            <div class="pieces-section">
+                <h2>Components</h2>
+                <p class="instructions">Select components to place on the grid</p>
+                <div id="pieces-container"></div>
+            </div>
+
+            <div class="solve-section">
+                <h2>Solver</h2>
+                <div class="solve-options">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="require-all-checkbox">
+                        <span>Require all selected pieces to fit</span>
+                    </label>
+                </div>
+                <button id="solve-btn" class="btn btn-primary">Solve</button>
+                <div id="solve-status" class="solve-status"></div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Jump Space Power Grid Optimizer - <a href="https://github.com" target="_blank">GitHub</a></p>
+        </footer>
+    </div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>
