@@ -122,6 +122,57 @@ After solving:
 
 ---
 
+---
+
+## Syncing Game Data
+
+The component shapes and tiers can be extracted directly from Jump Space game files using the included sync tool.
+
+### Setup
+
+```bash
+# Windows
+yarn sync:setup:win
+# or: pip install -r requirements.txt
+
+# Mac/Linux  
+yarn sync:setup:mac
+# or: pip3 install -r requirements.txt
+```
+
+### Usage
+
+```bash
+# Windows
+yarn sync:win                    # Sync from default Steam path
+yarn sync:compare:win            # Compare only (see what changed)
+yarn sync:dry-run:win            # Preview without saving
+
+# Mac/Linux
+yarn sync:mac
+yarn sync:compare:mac
+yarn sync:dry-run:mac
+
+# Custom game path (e.g. installed on E: drive)
+python tools/sync_game_data.py --game-path "E:\SteamLibrary\steamapps\common\JumpSpace"
+```
+
+### What it extracts
+
+| Data | Source | Notes |
+|------|--------|-------|
+| Component shapes | EngineerPlug assets | All 30 plug shapes |
+| Component tiers | Component assets | Maps game IDs to friendly names |
+| Aux generator tiers | Component assets | Power grid layouts need manual entry |
+
+### After a game update
+
+1. Run `python tools/sync_game_data.py --compare` to see what changed
+2. Run `python tools/sync_game_data.py` to update the JSON files
+3. Manually verify any new aux generator power grids from in-game
+
+---
+
 ## Contributing
 
 **Help us build the component library with accurate game data!**
@@ -136,6 +187,7 @@ After solving:
 1. **Fork this repository**
 2. **Edit the JSON files** (see formats below)
 3. **Submit a Pull Request**
+4. Or run the sync tool after game updates!
 
 ### Adding Component Shapes
 
@@ -184,10 +236,10 @@ Edit `data/reactors.json` - now supports tiers:
         "protectedPower": 8,
         "unprotectedPower": 14,
         "grid": [
-          [2, 2, 0, 0, 0, 0, 2, 2],
-          [1, 2, 1, 0, 0, 1, 2, 1],
-          [1, 1, 1, 0, 0, 1, 1, 1],
-          [1, 1, 1, 0, 0, 1, 1, 1]
+          [1, 1, 4, 4, 4, 4, 1, 1],
+          [0, 1, 0, 4, 4, 0, 1, 0],
+          [0, 0, 0, 4, 4, 0, 0, 0],
+          [0, 0, 0, 4, 4, 0, 0, 0]
         ]
       },
       "2": {
@@ -217,8 +269,8 @@ Edit `data/auxGenerators.json` - now supports tiers:
         "protectedPower": 4,
         "unprotectedPower": 6,
         "grid": [
-          [0, 2, 1, 1, 1, 1, 2, 0],
-          [0, 2, 1, 1, 1, 1, 2, 0]
+          [4, 1, 0, 0, 0, 0, 1, 4],
+          [4, 1, 0, 0, 0, 0, 1, 4]
         ]
       }
     }
@@ -226,7 +278,7 @@ Edit `data/auxGenerators.json` - now supports tiers:
 }
 ```
 
-**Grid values:** `0` = unpowered, `1` = powered (green), `2` = protected (blue)
+**Grid values (matching game encoding):** `0` = powered/unprotected (green), `1` = protected (blue), `4` = blocked/unpowered (black)
 
 ---
 
@@ -247,6 +299,8 @@ Edit `data/auxGenerators.json` - now supports tiers:
 │   ├── templates.js      # Reactor/aux loader with tier support
 │   ├── solver.js         # Priority-based backtracking solver
 │   └── ui.js             # UI rendering, drag-drop, hover sync
+├── tools/
+│   └── sync_game_data.py # Extract component data from game files
 ├── GAME_RULES.md         # Game mechanics documentation
 └── README.md             # This file
 ```

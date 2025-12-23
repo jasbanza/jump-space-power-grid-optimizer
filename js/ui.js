@@ -4,13 +4,27 @@
 
 import { 
     getGridState, getGridSize, toggleCell, clearGrid, 
-    setSolution, getSolution, clearSolution, setGridFromTemplate
+    setSolution, getSolution, clearSolution, setGridFromTemplate,
+    addManualPlacement, removeManualPlacement, getManualPlacements, 
+    clearManualPlacements, getManuallyOccupiedCells,
+    setAllSolutions, getAllSolutions, clearAllSolutions
 } from './grid.js';
-import { getComponents, countCells } from './components.js';
+import { getComponents, countCells, getAllRotations, getOccupiedCells } from './components.js';
 import { solve } from './solver.js';
 import { 
     getReactorList, getAuxGeneratorList, combineGrid, getGridStats 
 } from './templates.js';
+import {
+    initBuilds, getAllBuilds, getCurrentBuild, createUnnamedBuild,
+    saveBuild, quickSave, quickLoad, loadBuild, deleteBuild,
+    deleteCurrentUnsaved, isNameUnique, hasUnsavedChanges,
+    isCurrentBuildUnsaved, updateCurrentState, getSaveState,
+    exportToURL, importFromURL, clearURLHash
+} from './builds.js';
+import {
+    initDialogs, showDialog, showPromptDialog, showToast,
+    confirmDestructive, showInfo, showError
+} from './dialogs.js';
 
 // Track component tier quantities: Map<"componentId_tier", quantity>
 const componentQuantities = new Map();
@@ -22,7 +36,7 @@ let priorityIdCounter = 0;
 // Filter state
 let nameFilter = '';
 let blocksFilter = null;
-let tierFilter = '';
+let tierFilters = new Set(); // Multiple tiers can be selected; empty = all tiers
 
 // Expanded categories (only one at a time)
 let expandedCategory = null;
@@ -40,6 +54,9 @@ let currentAux2Tier = '1';
 
 // Track which priority items are placed in the solution
 let placedPriorityIds = new Set();
+
+// Track which placements are invalid (for manual drag-drop that failed validation)
+let invalidPlacements = new Set();
 
 // LocalStorage keys for persistence
 const STORAGE_KEY_CONFIG = 'jumpspace-grid-config';
@@ -167,9 +184,711 @@ function clearAllPersistedState() {
 /**
  * Initialize the UI
  */
+// ============================================
+// Build Management Functions
+// ============================================
+
+/**
+ * Get current build state for saving
+ */
+function getCurrentBuildState() {
+    return {
+        gridConfig: {
+            reactor: currentReactor,
+            reactorTier: currentReactorTier,
+            aux1: currentAux1,
+            aux1Tier: currentAux1Tier,
+            aux2: currentAux2,
+            aux2Tier: currentAux2Tier
+        },
+        priorityList: [...priorityList],
+        componentQuantities: Object.fromEntries(componentQuantities),
+        manualPlacements: getManualPlacements(),
+        solution: getSolution()
+    };
+}
+
+/**
+ * Apply a build state to the UI
+ */
+function applyBuildState(state) {
+    if (!state) return;
+    
+    // Apply grid config
+    if (state.gridConfig) {
+        currentReactor = state.gridConfig.reactor || '';
+        currentReactorTier = state.gridConfig.reactorTier || '1';
+        currentAux1 = state.gridConfig.aux1 || 'none';
+        currentAux1Tier = state.gridConfig.aux1Tier || '1';
+        currentAux2 = state.gridConfig.aux2 || 'none';
+        currentAux2Tier = state.gridConfig.aux2Tier || '1';
+    }
+    
+    // Apply priority list
+    if (state.priorityList) {
+        priorityList = [...state.priorityList];
+        // Update priorityIdCounter to be higher than any existing id
+        for (const item of priorityList) {
+            const num = parseInt(item.id.replace('priority_', ''), 10);
+            if (!isNaN(num) && num >= priorityIdCounter) {
+                priorityIdCounter = num + 1;
+            }
+        }
+    }
+    
+    // Apply component quantities
+    if (state.componentQuantities) {
+        componentQuantities.clear();
+        for (const [key, qty] of Object.entries(state.componentQuantities)) {
+            componentQuantities.set(key, qty);
+        }
+    }
+    
+    // Apply manual placements
+    clearManualPlacements();
+    if (state.manualPlacements) {
+        for (const placement of state.manualPlacements) {
+            addManualPlacement(placement);
+        }
+    }
+    
+    // Apply solution
+    clearSolution();
+    if (state.solution) {
+        setSolution(state.solution);
+        placedPriorityIds.clear();
+        for (const placement of state.solution) {
+            if (placement.priorityId) {
+                placedPriorityIds.add(placement.priorityId);
+            }
+        }
+    }
+    
+    // Apply grid config to grid
+    if (currentReactor) {
+        applyGridConfig();
+    }
+    
+    // Save to localStorage for next load
+    saveGridConfig();
+    saveComponents();
+    savePriorityList();
+}
+
+/**
+ * Handle build change callback
+ */
+function handleBuildChange(build) {
+    if (build && build.state) {
+        applyBuildState(build.state);
+    }
+    renderGrid();
+    renderComponents();
+    renderGridConfig();
+    renderPriorityList();
+    renderBuildSelector();
+}
+
+/**
+ * Update save state indicator
+ */
+function updateSaveIndicator() {
+    const indicator = document.getElementById('build-save-indicator');
+    const saveBtn = document.getElementById('build-save-btn');
+    const reloadBtn = document.getElementById('build-reload-btn');
+    const deleteBtn = document.getElementById('build-delete-btn');
+    
+    if (!indicator) return;
+    
+    const currentState = getCurrentBuildState();
+    const saveState = getSaveState(currentState);
+    const build = getCurrentBuild();
+    
+    // Update indicator
+    indicator.classList.remove('saved', 'unsaved', 'unnamed');
+    
+    if (!build || !build.name) {
+        indicator.textContent = '●';
+        indicator.title = 'Unsaved new build';
+        indicator.classList.add('unnamed');
+    } else if (saveState.hasChanges) {
+        indicator.textContent = '●';
+        indicator.title = 'Unsaved changes';
+        indicator.classList.add('unsaved');
+    } else {
+        indicator.textContent = '✓';
+        indicator.title = 'All changes saved';
+        indicator.classList.add('saved');
+    }
+    
+    // Update button states
+    if (saveBtn) {
+        saveBtn.disabled = !build && !currentReactor;
+    }
+    if (reloadBtn) {
+        reloadBtn.disabled = !build || !build.name || !saveState.hasChanges;
+    }
+    if (deleteBtn) {
+        deleteBtn.disabled = !build;
+    }
+    
+    // Show/hide unnamed build prompt
+    updateUnnamedBuildPrompt();
+}
+
+/**
+ * Update unnamed build prompt visibility
+ */
+let showUnnamedPrompt = false;
+
+function updateUnnamedBuildPrompt() {
+    const prompt = document.getElementById('unnamed-build-prompt');
+    if (!prompt) return;
+    
+    const build = getCurrentBuild();
+    const shouldShow = showUnnamedPrompt && build && !build.name;
+    
+    if (shouldShow) {
+        prompt.classList.remove('hidden');
+    } else {
+        prompt.classList.add('hidden');
+    }
+}
+
+/**
+ * Render build selector dropdown
+ */
+/**
+ * Format datetime for display
+ */
+function formatBuildDate(dateString) {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    
+    if (isToday) {
+        return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+    return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + 
+           ', ' + date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+}
+
+/**
+ * Render the custom build selector dropdown
+ */
+function renderBuildSelector() {
+    const toggle = document.getElementById('build-dropdown-toggle');
+    const menu = document.getElementById('build-dropdown-menu');
+    if (!toggle || !menu) return;
+    
+    const builds = getAllBuilds();
+    const currentBuild = getCurrentBuild();
+    
+    // Update toggle text
+    const textEl = toggle.querySelector('.build-dropdown-text');
+    if (textEl) {
+        textEl.textContent = currentBuild ? (currentBuild.name || 'Unnamed') : 'New Build';
+    }
+    
+    // Build menu items
+    menu.innerHTML = '';
+    
+    // New Build option
+    const newBuildItem = document.createElement('div');
+    newBuildItem.className = 'build-dropdown-item' + (!currentBuild ? ' selected' : '');
+    newBuildItem.dataset.buildId = '';
+    newBuildItem.innerHTML = `
+        <div class="build-dropdown-item-content">
+            <span class="build-dropdown-item-name">+ New Build</span>
+        </div>
+    `;
+    menu.appendChild(newBuildItem);
+    
+    if (builds.length > 0) {
+        // Divider
+        const divider = document.createElement('div');
+        divider.className = 'build-dropdown-divider';
+        menu.appendChild(divider);
+        
+        // Existing builds
+        for (const build of builds) {
+            const isSelected = currentBuild && currentBuild.id === build.id;
+            const item = document.createElement('div');
+            item.className = 'build-dropdown-item' + (isSelected ? ' selected' : '');
+            item.dataset.buildId = build.id;
+            
+            const dateStr = formatBuildDate(build.savedAt);
+            
+            item.innerHTML = `
+                <div class="build-dropdown-item-content">
+                    <span class="build-dropdown-item-name">${build.name || 'Unnamed'}</span>
+                    ${dateStr ? `<span class="build-dropdown-item-date">${dateStr}</span>` : ''}
+                </div>
+                <div class="build-dropdown-item-actions">
+                    <button class="build-clone-btn" data-clone-id="${build.id}" title="Clone this build">📋</button>
+                </div>
+            `;
+            menu.appendChild(item);
+        }
+    }
+}
+
+/**
+ * Setup build-related event listeners
+ */
+function setupBuildEventListeners() {
+    // Custom Build Dropdown
+    const dropdown = document.getElementById('build-dropdown');
+    const toggle = document.getElementById('build-dropdown-toggle');
+    const menu = document.getElementById('build-dropdown-menu');
+    
+    if (toggle && menu && dropdown) {
+        // Toggle dropdown
+        toggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            dropdown.classList.toggle('open');
+        });
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!dropdown.contains(e.target)) {
+                dropdown.classList.remove('open');
+            }
+        });
+        
+        // Handle item selection and clone clicks
+        menu.addEventListener('click', async (e) => {
+            // Handle clone button clicks
+            const cloneBtn = e.target.closest('.build-clone-btn');
+            if (cloneBtn) {
+                e.stopPropagation();
+                const buildId = cloneBtn.dataset.cloneId;
+                await handleCloneBuild(buildId);
+                return;
+            }
+            
+            // Handle item selection
+            const item = e.target.closest('.build-dropdown-item');
+            if (!item) return;
+            
+            const buildId = item.dataset.buildId;
+            
+            // Check for unsaved changes
+            const currentBuild = getCurrentBuild();
+            const currentState = getCurrentBuildState();
+            if (currentBuild && hasUnsavedChanges(currentState)) {
+                const confirmed = await confirmDestructive(
+                    'Unsaved Changes',
+                    'You have unsaved changes. Do you want to discard them?',
+                    'Discard'
+                );
+                if (!confirmed) {
+                    dropdown.classList.remove('open');
+                    return;
+                }
+            }
+            
+            dropdown.classList.remove('open');
+            
+            if (!buildId) {
+                // New build
+                deleteCurrentUnsaved();
+                currentReactor = '';
+                currentReactorTier = '1';
+                currentAux1 = 'none';
+                currentAux1Tier = '1';
+                currentAux2 = 'none';
+                currentAux2Tier = '1';
+                priorityList = [];
+                componentQuantities.clear();
+                clearManualPlacements();
+                clearSolution();
+                clearAllSolutions();
+                placedPriorityIds.clear();
+                invalidPlacements.clear();
+                
+                applyGridConfig();
+                renderGrid();
+                renderComponents();
+                renderGridConfig();
+                renderPriorityList();
+                updateSolutionDropdown([]);
+                updateSaveIndicator();
+                renderBuildSelector();
+            } else {
+                loadBuild(buildId);
+            }
+        });
+    }
+    
+    // Save button
+    const saveBtn = document.getElementById('build-save-btn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', handleSaveClick);
+    }
+    
+    // Reload button
+    const reloadBtn = document.getElementById('build-reload-btn');
+    if (reloadBtn) {
+        reloadBtn.addEventListener('click', handleReloadClick);
+    }
+    
+    // Share button
+    const shareBtn = document.getElementById('build-share-btn');
+    if (shareBtn) {
+        shareBtn.addEventListener('click', handleShareClick);
+    }
+    
+    // Screenshot button
+    const screenshotBtn = document.getElementById('build-screenshot-btn');
+    if (screenshotBtn) {
+        screenshotBtn.addEventListener('click', handleScreenshotClick);
+    }
+    
+    // Delete button
+    const deleteBtn = document.getElementById('build-delete-btn');
+    if (deleteBtn) {
+        deleteBtn.addEventListener('click', handleDeleteClick);
+    }
+    
+    // Unnamed build prompt buttons
+    const unnamedSaveBtn = document.getElementById('unnamed-save-btn');
+    const unnamedDeleteBtn = document.getElementById('unnamed-delete-btn');
+    const unnamedCancelBtn = document.getElementById('unnamed-cancel-btn');
+    const buildNameInput = document.getElementById('build-name-input');
+    
+    if (buildNameInput) {
+        buildNameInput.addEventListener('input', () => {
+            const name = buildNameInput.value.trim();
+            const errorSpan = document.getElementById('build-name-error');
+            const saveBtn = document.getElementById('unnamed-save-btn');
+            
+            let error = null;
+            if (!name) {
+                error = '';
+            } else if (!isNameUnique(name)) {
+                error = 'A build with this name already exists';
+            }
+            
+            if (errorSpan) errorSpan.textContent = error || '';
+            if (saveBtn) saveBtn.disabled = !name || !!error;
+        });
+    }
+    
+    if (unnamedSaveBtn) {
+        unnamedSaveBtn.addEventListener('click', () => {
+            const name = buildNameInput?.value.trim();
+            if (name && isNameUnique(name)) {
+                const state = getCurrentBuildState();
+                saveBuild(name, state);
+                showUnnamedPrompt = false;
+                renderBuildSelector();
+                updateSaveIndicator();
+                showToast('Build saved!', 'success');
+            }
+        });
+    }
+    
+    if (unnamedDeleteBtn) {
+        unnamedDeleteBtn.addEventListener('click', async () => {
+            const confirmed = await confirmDestructive(
+                'Delete Unsaved Build',
+                'This will delete the current unsaved build and clear all settings.',
+                'Delete'
+            );
+            if (confirmed) {
+                deleteCurrentUnsaved();
+                showUnnamedPrompt = false;
+                
+                // Reset everything
+                currentReactor = '';
+                currentReactorTier = '1';
+                currentAux1 = 'none';
+                currentAux1Tier = '1';
+                currentAux2 = 'none';
+                currentAux2Tier = '1';
+                priorityList = [];
+                componentQuantities.clear();
+                clearManualPlacements();
+                clearSolution();
+                clearAllSolutions();
+                placedPriorityIds.clear();
+                invalidPlacements.clear();
+                
+                applyGridConfig();
+                renderGrid();
+                renderComponents();
+                renderGridConfig();
+                renderPriorityList();
+                renderBuildSelector();
+                updateSolutionDropdown([]);
+                updateSaveIndicator();
+                showToast('Build deleted', 'info');
+            }
+        });
+    }
+    
+    if (unnamedCancelBtn) {
+        unnamedCancelBtn.addEventListener('click', () => {
+            showUnnamedPrompt = false;
+            updateUnnamedBuildPrompt();
+        });
+    }
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+        // Ctrl+S to save
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            handleSaveClick();
+        }
+    });
+}
+
+/**
+ * Handle clone build
+ */
+async function handleCloneBuild(buildId) {
+    const builds = getAllBuilds();
+    const build = builds.find(b => b.id === buildId);
+    
+    if (!build || !build.state) {
+        showToast('Failed to clone build', 'error');
+        return;
+    }
+    
+    // Generate timestamp name
+    const now = new Date();
+    const timestamp = now.toLocaleString([], { 
+        month: 'short', 
+        day: 'numeric',
+        hour: 'numeric', 
+        minute: '2-digit'
+    });
+    const cloneName = `Clone_${timestamp}`;
+    
+    // Save the clone with the source build's state
+    saveBuild(cloneName, build.state);
+    
+    showToast(`Cloned as "${cloneName}"`, 'success');
+    renderBuildSelector();
+    
+    // Close dropdown
+    const dropdown = document.getElementById('build-dropdown');
+    if (dropdown) dropdown.classList.remove('open');
+}
+
+/**
+ * Handle save button click
+ */
+async function handleSaveClick() {
+    const build = getCurrentBuild();
+    const state = getCurrentBuildState();
+    
+    if (build && build.name) {
+        // Quick save
+        quickSave(state);
+        showToast('Build saved!', 'success');
+        renderBuildSelector();
+        updateSaveIndicator();
+    } else {
+        // Need to name the build
+        showUnnamedPrompt = true;
+        updateUnnamedBuildPrompt();
+        
+        // Focus the input
+        const input = document.getElementById('build-name-input');
+        if (input) {
+            input.value = '';
+            input.focus();
+        }
+    }
+}
+
+/**
+ * Handle reload button click
+ */
+async function handleReloadClick() {
+    const build = getCurrentBuild();
+    if (!build || !build.name) return;
+    
+    const confirmed = await confirmDestructive(
+        'Reload Build',
+        `Discard unsaved changes and reload "${build.name}" from its last saved state?`,
+        'Reload'
+    );
+    
+    if (confirmed) {
+        const state = quickLoad();
+        if (state) {
+            applyBuildState(state);
+            renderGrid();
+            renderComponents();
+            renderGridConfig();
+            renderPriorityList();
+            updateSaveIndicator();
+            showToast('Build reloaded', 'info');
+        }
+    }
+}
+
+/**
+ * Handle share button click
+ */
+function handleShareClick() {
+    const state = getCurrentBuildState();
+    const url = exportToURL(state);
+    
+    if (url) {
+        navigator.clipboard.writeText(url).then(() => {
+            showToast('Link copied to clipboard!', 'success');
+        }).catch(() => {
+            showToast('Failed to copy link', 'error');
+        });
+    }
+}
+
+/**
+ * Handle screenshot button click
+ */
+async function handleScreenshotClick() {
+    // Check if html2canvas is available, if not, load it
+    if (typeof html2canvas === 'undefined') {
+        try {
+            // Dynamically load html2canvas from CDN
+            await loadScript('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js');
+        } catch (e) {
+            showToast('Failed to load screenshot library', 'error');
+            return;
+        }
+    }
+    
+    try {
+        const gridSection = document.querySelector('.grid-section');
+        if (!gridSection) {
+            showToast('Could not find grid section', 'error');
+            return;
+        }
+        
+        const canvas = await html2canvas(gridSection, {
+            backgroundColor: '#1a1a2e',
+            scale: 2
+        });
+        
+        canvas.toBlob((blob) => {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `power-grid-${Date.now()}.png`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Screenshot saved!', 'success');
+        });
+    } catch (e) {
+        console.error('Screenshot failed:', e);
+        showToast('Screenshot failed', 'error');
+    }
+}
+
+/**
+ * Load a script dynamically
+ */
+function loadScript(src) {
+    return new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+}
+
+/**
+ * Handle delete button click
+ */
+async function handleDeleteClick() {
+    const build = getCurrentBuild();
+    if (!build) return;
+    
+    const name = build.name || 'this unsaved build';
+    const confirmed = await confirmDestructive(
+        'Delete Build',
+        `Are you sure you want to delete "${name}"? This cannot be undone.`,
+        `Delete "${name}"`
+    );
+    
+    if (confirmed) {
+        if (build.id) {
+            deleteBuild(build.id);
+        } else {
+            deleteCurrentUnsaved();
+        }
+        
+        // Reset everything
+        currentReactor = '';
+        currentReactorTier = '1';
+        currentAux1 = 'none';
+        currentAux1Tier = '1';
+        currentAux2 = 'none';
+        currentAux2Tier = '1';
+        priorityList = [];
+        componentQuantities.clear();
+        clearManualPlacements();
+        clearSolution();
+        clearAllSolutions();
+        placedPriorityIds.clear();
+        invalidPlacements.clear();
+        
+        applyGridConfig();
+        renderGrid();
+        renderComponents();
+        renderGridConfig();
+        renderPriorityList();
+        renderBuildSelector();
+        updateSolutionDropdown([]);
+        updateSaveIndicator();
+        showToast('Build deleted', 'info');
+    }
+}
+
+/**
+ * Mark build as having changes (creates unnamed build if needed)
+ */
+function markBuildChanged() {
+    const build = getCurrentBuild();
+    const state = getCurrentBuildState();
+    
+    if (!build && currentReactor) {
+        // First change with no build - create unnamed build
+        createUnnamedBuild(state);
+    } else if (build) {
+        updateCurrentState(state);
+    }
+    
+    updateSaveIndicator();
+}
+
 export function initUI() {
-    // Load saved state before rendering
-    loadSavedState();
+    // Initialize dialog system
+    initDialogs();
+    
+    // Initialize builds system
+    initBuilds({
+        onBuildChange: handleBuildChange,
+        onSaveStateChange: updateSaveIndicator
+    });
+    
+    // Check for build in URL
+    const urlBuild = importFromURL();
+    if (urlBuild) {
+        applyBuildState(urlBuild);
+        clearURLHash();
+        showToast('Build loaded from shared link', 'success');
+    } else {
+        // Load saved state before rendering
+        loadSavedState();
+    }
     
     // Apply grid config if we have a saved reactor
     if (currentReactor) {
@@ -180,7 +899,10 @@ export function initUI() {
     renderComponents();
     renderGridConfig();
     renderPriorityList();
+    renderBuildSelector();
+    updateSaveIndicator();
     setupEventListeners();
+    setupBuildEventListeners();
 }
 
 // Track expanded power selector categories
@@ -329,9 +1051,9 @@ function createGridPreview(grid) {
             const cell = document.createElement('div');
             cell.className = 'power-option-preview-cell';
             const value = grid[row][col];
-            if (value === 2) {
+            if (value === 1) {
                 cell.classList.add('protected');
-            } else if (value === 1) {
+            } else if (value === 0) {
                 cell.classList.add('powered');
             } else {
                 cell.classList.add('empty');
@@ -363,6 +1085,9 @@ function handlePowerSelect(type, id, tier) {
     
     // Save grid config to localStorage
     saveGridConfig();
+    
+    // Mark build as changed
+    markBuildChanged();
     
     renderGridConfig();
     applyGridConfig();
@@ -425,7 +1150,7 @@ export function renderGrid() {
         
         for (const cell of placement.cells) {
             // Check if this cell is on a protected (blue) square
-            if (gridState[cell.row][cell.col] === 2) {
+            if (gridState[cell.row][cell.col] === 1) {
                 hasProtectedCell = true;
             }
             
@@ -469,9 +1194,9 @@ export function renderGrid() {
             cell.dataset.col = col;
             
             const cellValue = gridState[row][col];
-            if (cellValue === 2) {
+            if (cellValue === 1) {
                 cell.classList.add('protected');
-            } else if (cellValue === 1) {
+            } else if (cellValue === 0) {
                 cell.classList.add('powered');
             }
             
@@ -540,6 +1265,8 @@ export function renderGrid() {
         const label = document.createElement('div');
         label.className = 'piece-label';
         label.dataset.priorityId = priorityId;
+        label.draggable = true;
+        label.style.cursor = 'grab';
         
         // Calculate position and size to fit within the shape bounds
         const cellSize = 42; // grid cell size + gap
@@ -553,9 +1280,23 @@ export function renderGrid() {
         
         const name = bounds.name;
         label.textContent = name;
-        label.title = name;
+        label.title = `${name} - Drag to reposition`;
+        
+        // Drag handlers for repositioning on grid
+        label.addEventListener('dragstart', (e) => {
+            handleGridPieceDragStart(e, priorityId, bounds.minRow, bounds.minCol);
+        });
+        label.addEventListener('dragend', handleGridPieceDragEnd);
         
         container.appendChild(label);
+    }
+    
+    // Add invalid-placement class to overlays that are in invalid positions
+    if (invalidPlacements.size > 0) {
+        for (const priorityId of invalidPlacements) {
+            const overlays = container.querySelectorAll(`.piece-overlay[data-priority-id="${priorityId}"]`);
+            overlays.forEach(o => o.classList.add('invalid-placement'));
+        }
     }
 }
 
@@ -609,8 +1350,11 @@ function renderPriorityList() {
         handle.className = 'priority-drag-handle';
         handle.textContent = '≡';
         
-        // Preview
-        const preview = createSmallShapePreview(tierData.shape);
+        // Preview (use rotated shape if rotation is set)
+        const rotations = getAllRotations(tierData.shape);
+        const rotationIndex = item.rotation || 0;
+        const rotatedShape = rotations[rotationIndex % rotations.length];
+        const preview = createSmallShapePreview(rotatedShape);
         preview.className = 'priority-preview';
         
         // Info
@@ -628,17 +1372,42 @@ function renderPriorityList() {
         info.appendChild(name);
         info.appendChild(tier);
         
-        // Remove button
+        // Rotate button
+        const rotate = document.createElement('button');
+        rotate.className = 'priority-btn priority-rotate';
+        rotate.textContent = '🔄';
+        rotate.title = 'Rotate component';
+        rotate.addEventListener('click', (e) => {
+            e.stopPropagation();
+            rotateComponent(item.id);
+        });
+        
+        // Unplace button (remove from grid but keep in list)
+        const unplace = document.createElement('button');
+        unplace.className = 'priority-btn priority-unplace';
+        unplace.textContent = '↩️';
+        unplace.title = 'Remove from grid';
+        unplace.disabled = !isPlaced;
+        unplace.addEventListener('click', (e) => {
+            e.stopPropagation();
+            unplaceComponent(item.id);
+        });
+        
+        // Delete button (remove from list entirely)
         const remove = document.createElement('button');
-        remove.className = 'priority-remove';
-        remove.textContent = '×';
-        remove.addEventListener('click', () => {
+        remove.className = 'priority-btn priority-remove';
+        remove.textContent = '🗑️';
+        remove.title = 'Delete from build';
+        remove.addEventListener('click', (e) => {
+            e.stopPropagation();
             removePriorityItem(item.id);
         });
         
         div.appendChild(handle);
         div.appendChild(preview);
         div.appendChild(info);
+        div.appendChild(rotate);
+        div.appendChild(unplace);
         div.appendChild(remove);
         
         // Drag events
@@ -694,6 +1463,9 @@ function handleDragStart(e) {
     draggedItem = e.target;
     e.target.classList.add('dragging');
     e.dataTransfer.effectAllowed = 'move';
+    
+    // Also enable grid placement drag
+    handleGridDragStart(e, e.target);
 }
 
 function handleDragEnd(e) {
@@ -702,6 +1474,9 @@ function handleDragEnd(e) {
         item.classList.remove('drag-over');
     });
     draggedItem = null;
+    
+    // Clean up grid drag state
+    handleGridDragEnd();
 }
 
 function handleDragOver(e) {
@@ -821,6 +1596,68 @@ function removePriorityItem(id) {
 }
 
 /**
+ * Rotate a component in the priority list
+ */
+function rotateComponent(id) {
+    const item = priorityList.find(p => p.id === id);
+    if (!item) return;
+    
+    // Initialize rotation if not set
+    if (typeof item.rotation === 'undefined') {
+        item.rotation = 0;
+    }
+    
+    // Cycle through 0, 1, 2, 3 (representing 0°, 90°, 180°, 270°)
+    item.rotation = (item.rotation + 1) % 4;
+    
+    // Save to localStorage
+    savePriorityList();
+    
+    // Re-render to show updated preview
+    renderPriorityList();
+    
+    // If this component is placed, we need to clear the solution
+    // since the rotation changed
+    if (placedPriorityIds.has(id)) {
+        clearSolution();
+        clearManualPlacements();
+        clearAllSolutions();
+        placedPriorityIds.clear();
+        renderGrid();
+        updateSolutionDropdown([]);
+        updateStatus('Rotation changed - run solver again', 'info');
+    }
+}
+
+/**
+ * Unplace a component from the grid (keep in My Components list)
+ */
+function unplaceComponent(id) {
+    if (!placedPriorityIds.has(id)) return;
+    
+    // Remove from placed set
+    placedPriorityIds.delete(id);
+    
+    // Remove from solution
+    const solution = getSolution();
+    const updatedSolution = solution.filter(p => p.priorityId !== id);
+    setSolution(updatedSolution);
+    
+    // Remove from manual placements if it was there
+    removeManualPlacement(id);
+    
+    // Remove from invalid placements if it was there
+    invalidPlacements.delete(id);
+    
+    // Re-render
+    renderGrid();
+    renderPriorityList();
+    updateGridStatus();
+    
+    markBuildChanged();
+}
+
+/**
  * Sync priority list with component quantities
  */
 function syncPriorityList(componentId, tier, newQty) {
@@ -898,6 +1735,552 @@ function unhighlightPriorityItem(priorityId) {
     }
 }
 
+// ============================================
+// GRID DRAG-AND-DROP FOR MANUAL PLACEMENT
+// ============================================
+
+// State for grid drag-drop
+let gridDragData = null;  // { priorityId, componentId, tier, shape, rotations, currentRotation }
+let gridDragHighlightedCells = [];
+
+/**
+ * Handle dragstart on priority items for grid placement
+ */
+function handleGridDragStart(e, priorityItem) {
+    const priorityId = priorityItem.dataset.priorityId;
+    const item = priorityList.find(p => p.id === priorityId);
+    if (!item) return;
+    
+    const components = getComponents();
+    const component = components[item.componentId];
+    if (!component || !component.tiers[item.tier]) return;
+    
+    const tierData = component.tiers[item.tier];
+    const rotations = getAllRotations(tierData.shape);
+    
+    // Start with the item's stored rotation (from rotate button)
+    const initialRotation = item.rotation || 0;
+    
+    gridDragData = {
+        priorityId,
+        componentId: item.componentId,
+        tier: item.tier,
+        componentName: component.name,
+        rotations,
+        currentRotation: initialRotation,
+        shape: rotations[initialRotation % rotations.length]
+    };
+    
+    e.dataTransfer.setData('text/plain', 'grid-placement');
+    e.dataTransfer.effectAllowed = 'move';
+}
+
+/**
+ * Rotate the currently dragged component (called on R key)
+ */
+function rotateGridDrag() {
+    if (!gridDragData) return;
+    
+    gridDragData.currentRotation = (gridDragData.currentRotation + 1) % gridDragData.rotations.length;
+    gridDragData.shape = gridDragData.rotations[gridDragData.currentRotation];
+    
+    // Also update the priority item's stored rotation
+    const item = priorityList.find(p => p.id === gridDragData.priorityId);
+    if (item) {
+        item.rotation = gridDragData.currentRotation;
+        savePriorityList();
+        // Update the preview in the list
+        renderPriorityList();
+    }
+    
+    // Re-highlight with new rotation if we have a cached position
+    if (gridDragHighlightedCells.length > 0) {
+        // Find the top-left of current highlight
+        const container = document.getElementById('grid-container');
+        const cells = container.querySelectorAll('.grid-cell');
+        if (cells.length > 0) {
+            const firstHighlighted = gridDragHighlightedCells[0];
+            if (firstHighlighted) {
+                updateGridDragHighlight(firstHighlighted.row, firstHighlighted.col);
+            }
+        }
+    }
+}
+
+/**
+ * Update grid cell highlighting during drag
+ */
+function updateGridDragHighlight(startRow, startCol) {
+    clearGridDragHighlight();
+    
+    if (!gridDragData) return;
+    
+    const gridState = getGridState();
+    const gridSize = getGridSize();
+    const shape = gridDragData.shape;
+    const occupiedCells = getManuallyOccupiedCells();
+    
+    // Also mark cells from current solver solution as occupied (except for this component)
+    const solution = getSolution();
+    for (const placement of solution) {
+        if (placement.priorityId !== gridDragData.priorityId) {
+            for (const cell of placement.cells) {
+                occupiedCells.add(`${cell.row},${cell.col}`);
+            }
+        }
+    }
+    
+    const cells = getOccupiedCells(shape, startRow, startCol);
+    let allValid = true;
+    
+    gridDragHighlightedCells = [];
+    
+    for (const cell of cells) {
+        const { row, col } = cell;
+        
+        // Check bounds
+        if (row < 0 || row >= gridSize || col < 0 || col >= gridSize) {
+            allValid = false;
+            continue;
+        }
+        
+        const cellElement = document.querySelector(`.grid-cell[data-row="${row}"][data-col="${col}"]`);
+        if (!cellElement) continue;
+        
+        const cellValue = gridState[row][col];
+        const isOccupied = occupiedCells.has(`${row},${col}`);
+        const isPowered = cellValue === 0 || cellValue === 1;
+        const isProtected = cellValue === 1;
+        
+        gridDragHighlightedCells.push({ row, col, element: cellElement });
+        
+        if (!isPowered || isOccupied) {
+            cellElement.classList.add('drag-invalid');
+            allValid = false;
+        } else if (isProtected) {
+            cellElement.classList.add('drag-protected');
+        } else {
+            cellElement.classList.add('drag-valid');
+        }
+    }
+    
+    return allValid;
+}
+
+/**
+ * Clear all grid drag highlighting
+ */
+function clearGridDragHighlight() {
+    for (const { element } of gridDragHighlightedCells) {
+        element.classList.remove('drag-valid', 'drag-protected', 'drag-invalid');
+    }
+    gridDragHighlightedCells = [];
+}
+
+/**
+ * Flash cells red to indicate invalid drop
+ */
+function flashInvalidCells(cells) {
+    for (const { element } of cells) {
+        element.classList.add('flash-invalid');
+        setTimeout(() => {
+            element.classList.remove('flash-invalid');
+        }, 450);
+    }
+}
+
+/**
+ * Get grid cell position from mouse event
+ */
+function getGridCellFromEvent(e) {
+    const container = document.getElementById('grid-container');
+    const rect = container.getBoundingClientRect();
+    const cellSize = 42; // 40px cell + 2px gap
+    
+    const x = e.clientX - rect.left - 2; // Account for padding
+    const y = e.clientY - rect.top - 2;
+    
+    const col = Math.floor(x / cellSize);
+    const row = Math.floor(y / cellSize);
+    
+    const gridSize = getGridSize();
+    if (row < 0 || row >= gridSize || col < 0 || col >= gridSize) {
+        return null;
+    }
+    
+    return { row, col };
+}
+
+/**
+ * Handle dragover on grid container
+ */
+function handleGridDragOver(e) {
+    if (!gridDragData) return;
+    
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    
+    const pos = getGridCellFromEvent(e);
+    if (!pos) {
+        clearGridDragHighlight();
+        return;
+    }
+    
+    updateGridDragHighlight(pos.row, pos.col);
+}
+
+/**
+ * Handle dragleave on grid container
+ */
+function handleGridDragLeave(e) {
+    const container = document.getElementById('grid-container');
+    if (!container.contains(e.relatedTarget)) {
+        clearGridDragHighlight();
+    }
+}
+
+/**
+ * Handle drop on grid container
+ */
+function handleGridDrop(e) {
+    e.preventDefault();
+    
+    if (!gridDragData) {
+        clearGridDragHighlight();
+        return;
+    }
+    
+    const pos = getGridCellFromEvent(e);
+    if (!pos) {
+        clearGridDragHighlight();
+        gridDragData = null;
+        return;
+    }
+    
+    const gridState = getGridState();
+    const gridSize = getGridSize();
+    const shape = gridDragData.shape;
+    const cells = getOccupiedCells(shape, pos.row, pos.col);
+    const occupiedCells = getManuallyOccupiedCells();
+    
+    // Also check solver solution cells (except this component)
+    const solution = getSolution();
+    for (const placement of solution) {
+        if (placement.priorityId !== gridDragData.priorityId) {
+            for (const cell of placement.cells) {
+                occupiedCells.add(`${cell.row},${cell.col}`);
+            }
+        }
+    }
+    
+    // Validate all cells
+    let allValid = true;
+    for (const cell of cells) {
+        if (cell.row < 0 || cell.row >= gridSize || cell.col < 0 || cell.col >= gridSize) {
+            allValid = false;
+            break;
+        }
+        const cellValue = gridState[cell.row][cell.col];
+        const isPowered = cellValue === 0 || cellValue === 1;
+        const isOccupied = occupiedCells.has(`${cell.row},${cell.col}`);
+        
+        if (!isPowered || isOccupied) {
+            allValid = false;
+            break;
+        }
+    }
+    
+    if (!allValid) {
+        // Flash red and reject
+        flashInvalidCells(gridDragHighlightedCells);
+        clearGridDragHighlight();
+        gridDragData = null;
+        return;
+    }
+    
+    // Valid drop - create placement
+    const placement = {
+        priorityId: gridDragData.priorityId,
+        pieceId: `${gridDragData.componentId}_${gridDragData.tier}`,
+        pieceName: `${gridDragData.componentName} Mk ${gridDragData.tier}`,
+        componentName: gridDragData.componentName,
+        shape: shape,
+        row: pos.row,
+        col: pos.col,
+        rotation: gridDragData.currentRotation * 90,
+        cells: cells
+    };
+    
+    // Add to manual placements
+    addManualPlacement(placement);
+    
+    // Update solution state to include this manual placement
+    updateSolutionWithManualPlacements();
+    
+    // Update UI
+    clearGridDragHighlight();
+    gridDragData = null;
+    
+    renderGrid();
+    renderPriorityList();
+    updateGridStatus();
+}
+
+/**
+ * Handle dragend for grid drag (cleanup)
+ */
+function handleGridDragEnd() {
+    clearGridDragHighlight();
+    gridDragData = null;
+}
+
+// State for grid piece repositioning
+let gridPieceDragData = null;
+
+/**
+ * Handle dragstart on placed pieces for repositioning
+ */
+function handleGridPieceDragStart(e, priorityId, startRow, startCol) {
+    const item = priorityList.find(p => p.id === priorityId);
+    if (!item) return;
+    
+    const components = getComponents();
+    const component = components[item.componentId];
+    if (!component || !component.tiers[item.tier]) return;
+    
+    const tierData = component.tiers[item.tier];
+    const rotations = getAllRotations(tierData.shape);
+    const rotationIndex = item.rotation || 0;
+    
+    gridPieceDragData = {
+        priorityId,
+        componentId: item.componentId,
+        tier: item.tier,
+        componentName: component.name,
+        rotations,
+        currentRotation: rotationIndex,
+        shape: rotations[rotationIndex],
+        originalRow: startRow,
+        originalCol: startCol
+    };
+    
+    // Use the same highlighting as regular grid drag
+    gridDragData = gridPieceDragData;
+    
+    e.dataTransfer.setData('text/plain', 'grid-piece-move');
+    e.dataTransfer.effectAllowed = 'move';
+    
+    // Remove this piece from invalid placements if it was there
+    invalidPlacements.delete(priorityId);
+}
+
+/**
+ * Handle dragend for grid piece repositioning
+ */
+function handleGridPieceDragEnd() {
+    clearGridDragHighlight();
+    gridDragData = null;
+    gridPieceDragData = null;
+}
+
+/**
+ * Handle drop for grid piece repositioning
+ */
+function handleGridPieceDrop(e) {
+    e.preventDefault();
+    
+    if (!gridPieceDragData) {
+        // Fall through to regular grid drop
+        handleGridDrop(e);
+        return;
+    }
+    
+    const pos = getGridCellFromEvent(e);
+    if (!pos) {
+        clearGridDragHighlight();
+        gridPieceDragData = null;
+        gridDragData = null;
+        return;
+    }
+    
+    const gridState = getGridState();
+    const gridSize = getGridSize();
+    const shape = gridPieceDragData.shape;
+    const cells = getOccupiedCells(shape, pos.row, pos.col);
+    const occupiedCells = getManuallyOccupiedCells();
+    
+    // Get cells from solution that aren't this piece
+    const solution = getSolution();
+    for (const placement of solution) {
+        if (placement.priorityId !== gridPieceDragData.priorityId) {
+            for (const cell of placement.cells) {
+                occupiedCells.add(`${cell.row},${cell.col}`);
+            }
+        }
+    }
+    
+    // Validate all cells
+    let allValid = true;
+    for (const cell of cells) {
+        if (cell.row < 0 || cell.row >= gridSize || cell.col < 0 || cell.col >= gridSize) {
+            allValid = false;
+            break;
+        }
+        const cellValue = gridState[cell.row][cell.col];
+        const isPowered = cellValue === 0 || cellValue === 1;
+        const isOccupied = occupiedCells.has(`${cell.row},${cell.col}`);
+        
+        if (!isPowered || isOccupied) {
+            allValid = false;
+            break;
+        }
+    }
+    
+    // Create placement object
+    const placement = {
+        priorityId: gridPieceDragData.priorityId,
+        pieceId: `${gridPieceDragData.componentId}_${gridPieceDragData.tier}`,
+        pieceName: `${gridPieceDragData.componentName} Mk ${gridPieceDragData.tier}`,
+        componentName: gridPieceDragData.componentName,
+        shape: shape,
+        row: pos.row,
+        col: pos.col,
+        rotation: gridPieceDragData.currentRotation * 90,
+        cells: cells
+    };
+    
+    if (!allValid) {
+        // Keep the placement but mark as invalid
+        invalidPlacements.add(gridPieceDragData.priorityId);
+    } else {
+        // Valid placement - remove from invalid set
+        invalidPlacements.delete(gridPieceDragData.priorityId);
+    }
+    
+    // Update manual placements
+    addManualPlacement(placement);
+    
+    // Update solution state
+    updateSolutionWithManualPlacements();
+    
+    // Clean up
+    clearGridDragHighlight();
+    gridDragData = null;
+    gridPieceDragData = null;
+    
+    renderGrid();
+    renderPriorityList();
+    updateGridStatus();
+}
+
+/**
+ * Update solution state with manual placements
+ * This merges solver solution with manual placements
+ */
+function updateSolutionWithManualPlacements() {
+    const manualPlacements = getManualPlacements();
+    const currentSolution = getSolution();
+    
+    // Start with manual placements
+    const newSolution = [...manualPlacements];
+    
+    // Add solver placements that don't conflict with manual ones
+    const manualPriorityIds = new Set(manualPlacements.map(p => p.priorityId));
+    const manualOccupied = getManuallyOccupiedCells();
+    
+    for (const placement of currentSolution) {
+        // Skip if this priority ID is manually placed
+        if (manualPriorityIds.has(placement.priorityId)) continue;
+        
+        // Skip if any cell conflicts with manual placements
+        let conflicts = false;
+        for (const cell of placement.cells) {
+            if (manualOccupied.has(`${cell.row},${cell.col}`)) {
+                conflicts = true;
+                break;
+            }
+        }
+        
+        if (!conflicts) {
+            newSolution.push(placement);
+        }
+    }
+    
+    setSolution(newSolution);
+}
+
+/**
+ * Update grid status display (used for manual placement updates without re-solving)
+ */
+function updateGridStatus() {
+    const solution = getSolution();
+    const gridState = getGridState();
+    const gridSize = getGridSize();
+    
+    // Count stats
+    let poweredCount = 0;
+    let protectedCount = 0;
+    for (let r = 0; r < gridSize; r++) {
+        for (let c = 0; c < gridSize; c++) {
+            if (gridState[r][c] === 0) poweredCount++;  // unprotected power
+            if (gridState[r][c] === 1) {
+                poweredCount++;
+                protectedCount++;
+            }
+        }
+    }
+    
+    let coveredCells = 0;
+    let coveredProtected = 0;
+    for (const placement of solution) {
+        for (const cell of placement.cells) {
+            coveredCells++;
+            if (gridState[cell.row][cell.col] === 1) {
+                coveredProtected++;
+            }
+        }
+    }
+    
+    const componentsPlaced = solution.length;
+    const totalComponents = priorityList.length;
+    const offlineComponents = totalComponents - componentsPlaced;
+    
+    // Update placed priority IDs
+    placedPriorityIds.clear();
+    for (const placement of solution) {
+        placedPriorityIds.add(placement.priorityId);
+    }
+    
+    // Build message
+    let message = `Placed ${componentsPlaced}/${totalComponents} components`;
+    message += `, covering ${coveredCells}/${poweredCount} cells`;
+    
+    if (protectedCount > 0) {
+        message += ` (${coveredProtected}/${protectedCount} protected)`;
+    }
+    
+    if (offlineComponents > 0) {
+        message += ` | ${offlineComponents} offline`;
+    }
+    
+    // Update status display
+    const statusEl = document.getElementById('solve-status');
+    if (statusEl) {
+        statusEl.textContent = message;
+        statusEl.className = 'solve-status ' + (componentsPlaced === totalComponents ? 'success' : 'info');
+    }
+}
+
+// Key handler for rotation during drag
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'r' || e.key === 'R') {
+        if (gridDragData) {
+            rotateGridDrag();
+            e.preventDefault();
+        }
+    }
+});
+
 /**
  * Render the components accordion list with collapsible categories
  */
@@ -927,7 +2310,7 @@ function renderComponents() {
             }
             
             // Check if any tier matches filters
-            const matchingTiers = getMatchingTiers(component.tiers, blocksFilter, tierFilter);
+            const matchingTiers = getMatchingTiers(component.tiers, blocksFilter, tierFilters);
             return matchingTiers.length > 0;
         });
         
@@ -972,7 +2355,7 @@ function renderComponents() {
         categoryContent.className = 'category-content';
         
         for (const { componentId, component } of filteredItems) {
-            const matchingTiers = getMatchingTiers(component.tiers, blocksFilter, tierFilter);
+            const matchingTiers = getMatchingTiers(component.tiers, blocksFilter, tierFilters);
             const tiersToShow = matchingTiers.length > 0 ? matchingTiers : Object.keys(component.tiers);
             
             // Check if any tier has a quantity set
@@ -1101,15 +2484,15 @@ function renderComponents() {
 /**
  * Get tiers that match the filters
  */
-function getMatchingTiers(tiers, blockFilter, tierFilterValue) {
+function getMatchingTiers(tiers, blockFilter, tierFiltersSet) {
     return Object.entries(tiers)
         .filter(([tier, data]) => {
             // Block filter
             if (blockFilter !== null && countCells(data.shape) !== blockFilter) {
                 return false;
             }
-            // Tier filter
-            if (tierFilterValue && tier !== tierFilterValue) {
+            // Tier filter (if none selected, show all)
+            if (tierFiltersSet.size > 0 && !tierFiltersSet.has(tier)) {
                 return false;
             }
             return true;
@@ -1195,12 +2578,19 @@ function getSelectedComponentsFromPriority() {
         const component = components[item.componentId];
         if (!component || !component.tiers[item.tier]) continue;
         
+        // Get rotated shape if rotation is set
+        const baseShape = component.tiers[item.tier].shape;
+        const rotations = getAllRotations(baseShape);
+        const rotationIndex = item.rotation || 0;
+        const shape = rotations[rotationIndex % rotations.length];
+        
         selected.push({
             id: item.id,
             priorityId: item.id,
             name: `${component.name} Mk ${item.tier}`,
             componentName: `${component.name} Mk ${item.tier}`,
-            shape: component.tiers[item.tier].shape
+            shape: shape,
+            preferredRotation: rotationIndex
         });
     }
     
@@ -1226,6 +2616,19 @@ function setupEventListeners() {
         }
     });
     
+    // Grid drag-and-drop for manual placement
+    const gridContainer = document.getElementById('grid-container');
+    gridContainer.addEventListener('dragover', handleGridDragOver);
+    gridContainer.addEventListener('dragleave', handleGridDragLeave);
+    gridContainer.addEventListener('drop', (e) => {
+        // Check if this is a grid piece move or a new placement
+        if (gridPieceDragData) {
+            handleGridPieceDrop(e);
+        } else {
+            handleGridDrop(e);
+        }
+    });
+    
     // Filter inputs
     document.getElementById('filter-name').addEventListener('input', (e) => {
         nameFilter = e.target.value;
@@ -1237,15 +2640,42 @@ function setupEventListeners() {
         renderComponents();
     });
     
-    document.getElementById('filter-tier').addEventListener('change', (e) => {
-        tierFilter = e.target.value;
-        renderComponents();
+    // Tier checkboxes
+    document.querySelectorAll('input[name="filter-tier"]').forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+            tierFilters.clear();
+            document.querySelectorAll('input[name="filter-tier"]:checked').forEach(cb => {
+                tierFilters.add(cb.value);
+            });
+            renderComponents();
+        });
     });
     
-    // Clear grid button - clears everything
-    document.getElementById('clear-grid-btn').addEventListener('click', () => {
+    // Clear grid button - clears everything with confirmation
+    document.getElementById('clear-grid-btn').addEventListener('click', async () => {
+        const confirmed = await showDialog({
+            title: 'Reset All?',
+            message: `
+                <p>This will:</p>
+                <ul>
+                    <li>Clear the power grid configuration</li>
+                    <li>Remove all selected components</li>
+                    <li>Clear all solutions and placements</li>
+                </ul>
+            `,
+            icon: 'warning',
+            buttons: [
+                { text: 'Cancel', action: 'cancel', style: 'secondary' },
+                { text: 'Reset Everything', action: 'confirm', style: 'danger' }
+            ]
+        });
+        
+        if (confirmed !== 'confirm') return;
+        
         clearGrid();
         clearSolution();
+        clearManualPlacements();
+        clearAllSolutions();
         placedPriorityIds.clear();
         
         // Reset reactor/aux selections
@@ -1265,21 +2695,56 @@ function setupEventListeners() {
         // Clear all localStorage
         clearAllPersistedState();
         
+        // Also delete unsaved build
+        deleteCurrentUnsaved();
+        
         renderGridConfig();
         renderGrid();
         renderComponents();
         renderPriorityList();
+        renderBuildSelector();
         updateGridStats();
+        updateSolutionDropdown([]);
+        updateSaveIndicator();
         updateStatus('All cleared', 'info');
     });
     
-    // Clear solution button - only clears the solution visualization
-    document.getElementById('clear-solution-btn').addEventListener('click', () => {
+    // Clear solutions button - clears all solutions and manual placements with confirmation
+    document.getElementById('clear-solution-btn').addEventListener('click', async () => {
+        const confirmed = await showDialog({
+            title: 'Clear Solutions?',
+            message: `
+                <p>This will:</p>
+                <ul>
+                    <li>Remove all placed components from the grid</li>
+                    <li>Keep your selected components list intact</li>
+                </ul>
+            `,
+            icon: 'warning',
+            buttons: [
+                { text: 'Cancel', action: 'cancel', style: 'secondary' },
+                { text: 'Clear Solutions', action: 'confirm', style: 'danger' }
+            ]
+        });
+        
+        if (confirmed !== 'confirm') return;
+        
         clearSolution();
+        clearManualPlacements();
+        clearAllSolutions();
         placedPriorityIds.clear();
+        invalidPlacements.clear();
         renderGrid();
         renderPriorityList();
-        updateStatus('Solution cleared', 'info');
+        updateSolutionDropdown([]);
+        updateStatus('Solutions cleared', 'info');
+    });
+    
+    // Solution dropdown
+    document.getElementById('solution-select').addEventListener('change', (e) => {
+        if (e.target.value) {
+            applySolution(e.target.value);
+        }
     });
     
     // Solve button
@@ -1297,10 +2762,13 @@ function runSolver() {
     const gridSize = getGridSize();
     
     clearSolution();
+    clearManualPlacements();
     placedPriorityIds.clear();
+    invalidPlacements.clear();
     
     if (selectedComponents.length === 0) {
         updateStatus('Add components to the build order first', 'error');
+        updateSolutionDropdown([]);
         return;
     }
     
@@ -1315,12 +2783,23 @@ function runSolver() {
         if (result.solution && result.solution.length > 0) {
             setSolution(result.solution);
             
+            // Store all solutions for dropdown
+            if (result.solutions && result.solutions.length > 0) {
+                setAllSolutions(result.solutions);
+                updateSolutionDropdown(result.solutions);
+            } else {
+                setAllSolutions([]);
+                updateSolutionDropdown([]);
+            }
+            
             // Track which priority items are placed
             placedPriorityIds = new Set(result.solution.map(p => p.priorityId));
             
             updateStatus(result.message, 'success');
         } else {
             updateStatus(result.message || 'No solution found', 'error');
+            setAllSolutions([]);
+            updateSolutionDropdown([]);
         }
         
         renderGrid();
@@ -1329,6 +2808,69 @@ function runSolver() {
         solveBtn.disabled = false;
         solveBtn.textContent = 'Solve';
     }, 50);
+}
+
+/**
+ * Update the solution dropdown with available solutions
+ */
+function updateSolutionDropdown(solutions) {
+    const select = document.getElementById('solution-select');
+    select.innerHTML = '';
+    
+    if (!solutions || solutions.length === 0) {
+        const option = document.createElement('option');
+        option.value = '';
+        option.textContent = '-- Run solver first --';
+        select.appendChild(option);
+        select.disabled = true;
+        return;
+    }
+    
+    solutions.forEach((sol, index) => {
+        const option = document.createElement('option');
+        option.value = sol.id;
+        option.textContent = sol.title;
+        // Add tooltip from solution data
+        if (sol.tooltip) {
+            option.title = sol.tooltip;
+        }
+        if (index === 0) option.selected = true;
+        select.appendChild(option);
+    });
+    
+    select.disabled = solutions.length <= 1;
+}
+
+/**
+ * Apply a selected solution from the dropdown
+ */
+function applySolution(solutionId) {
+    const solutions = getAllSolutions();
+    const selected = solutions.find(s => s.id === solutionId);
+    
+    if (!selected) return;
+    
+    // Clear manual placements when switching solutions
+    clearManualPlacements();
+    
+    // Apply the selected solution
+    setSolution(selected.solution);
+    
+    // Track which priority items are placed
+    placedPriorityIds = new Set(selected.solution.map(p => p.priorityId));
+    
+    // Update UI
+    renderGrid();
+    renderPriorityList();
+    
+    // Update status with solution info
+    const stats = selected.stats;
+    let message = `Placed ${stats.placed}/${stats.total} components`;
+    message += `, covering ${stats.coveredCells}/${stats.poweredCount} cells`;
+    if (stats.protectedCount > 0) {
+        message += ` (${stats.coveredProtected}/${stats.protectedCount} protected)`;
+    }
+    updateStatus(message, 'success');
 }
 
 /**

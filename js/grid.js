@@ -1,27 +1,33 @@
 /**
  * Grid State Management for Power Grid Optimizer
  * 
- * Grid cell values:
- * - 0 = unpowered (black)
- * - 1 = powered (green)
- * - 2 = protected (light blue - prioritized in solver)
+ * Grid cell values (matching game encoding):
+ * - 0 = powered/unprotected (green)
+ * - 1 = protected (light blue - prioritized in solver)
+ * - 4 = blocked/unpowered (black)
  */
 
 const GRID_SIZE = 8;
 const STORAGE_KEY = 'jumpspace-grid-state';
 
-// Grid state: 2D array of cell values (0, 1, or 2)
+// Grid state: 2D array of cell values (0=powered, 1=protected, 4=blocked)
 let gridState = createEmptyGrid();
 
 // Solution state: tracks which components are placed where
 let solutionState = [];
 
+// Manual placements: components placed by drag-and-drop (not by solver)
+let manualPlacements = [];
+
+// All solutions found by solver (for multi-solution support)
+let allSolutions = [];
+
 /**
- * Create an empty 8x8 grid
- * @returns {number[][]} - Empty grid with all zeros
+ * Create an empty 8x8 grid (all blocked)
+ * @returns {number[][]} - Empty grid with all 4s (blocked)
  */
 function createEmptyGrid() {
-    return Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(0));
+    return Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(4));
 }
 
 /**
@@ -48,27 +54,33 @@ export function getGridSize() {
 }
 
 /**
- * Toggle a cell's state: 0 -> 1 -> 2 -> 0
+ * Toggle a cell's state: 4 -> 0 -> 1 -> 4 (blocked -> powered -> protected -> blocked)
  * @param {number} row - Row index
  * @param {number} col - Column index
  * @returns {number} - New state of the cell
  */
 export function toggleCell(row, col) {
     if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
-        // Cycle through: 0 -> 1 -> 0 (simple toggle for now)
-        // Users can use templates for protected cells
-        gridState[row][col] = gridState[row][col] === 0 ? 1 : 0;
+        // Cycle through: 4 (blocked) -> 0 (powered) -> 1 (protected) -> 4
+        const current = gridState[row][col];
+        if (current === 4) {
+            gridState[row][col] = 0;  // blocked -> powered
+        } else if (current === 0) {
+            gridState[row][col] = 1;  // powered -> protected
+        } else {
+            gridState[row][col] = 4;  // protected -> blocked
+        }
         saveGridState();
         return gridState[row][col];
     }
-    return 0;
+    return 4;
 }
 
 /**
  * Set a cell's state
  * @param {number} row - Row index
  * @param {number} col - Column index
- * @param {number} value - Cell value (0, 1, or 2)
+ * @param {number} value - Cell value (0, 1, or 4)
  */
 export function setCell(row, col, value) {
     if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
@@ -81,7 +93,7 @@ export function setCell(row, col, value) {
  * Get cell value
  * @param {number} row - Row index
  * @param {number} col - Column index
- * @returns {number} - Cell value (0, 1, or 2)
+ * @returns {number} - Cell value (0, 1, or 4)
  */
 export function getCellValue(row, col) {
     if (row >= 0 && row < GRID_SIZE && col >= 0 && col < GRID_SIZE) {
@@ -94,21 +106,21 @@ export function getCellValue(row, col) {
  * Check if a cell is powered (green or protected)
  * @param {number} row - Row index
  * @param {number} col - Column index
- * @returns {boolean} - Whether the cell is powered (1 or 2)
+ * @returns {boolean} - Whether the cell is powered (0 or 1)
  */
 export function isCellPowered(row, col) {
     const value = getCellValue(row, col);
-    return value === 1 || value === 2;
+    return value === 0 || value === 1;
 }
 
 /**
  * Check if a cell is protected
  * @param {number} row - Row index
  * @param {number} col - Column index
- * @returns {boolean} - Whether the cell is protected (2)
+ * @returns {boolean} - Whether the cell is protected (1)
  */
 export function isCellProtected(row, col) {
-    return getCellValue(row, col) === 2;
+    return getCellValue(row, col) === 1;
 }
 
 /**
@@ -146,11 +158,11 @@ export function getPoweredCells() {
     for (let row = 0; row < GRID_SIZE; row++) {
         for (let col = 0; col < GRID_SIZE; col++) {
             const value = gridState[row][col];
-            if (value === 1 || value === 2) {
+            if (value === 0 || value === 1) {
                 cells.push({ 
                     row, 
                     col, 
-                    protected: value === 2 
+                    protected: value === 1 
                 });
             }
         }
@@ -166,7 +178,7 @@ export function getProtectedCells() {
     const cells = [];
     for (let row = 0; row < GRID_SIZE; row++) {
         for (let col = 0; col < GRID_SIZE; col++) {
-            if (gridState[row][col] === 2) {
+            if (gridState[row][col] === 1) {
                 cells.push({ row, col });
             }
         }
@@ -176,13 +188,13 @@ export function getProtectedCells() {
 
 /**
  * Count powered cells
- * @returns {number} - Number of powered cells (1 or 2)
+ * @returns {number} - Number of powered cells (0 or 1)
  */
 export function countPoweredCells() {
     let count = 0;
     for (let row = 0; row < GRID_SIZE; row++) {
         for (let col = 0; col < GRID_SIZE; col++) {
-            if (gridState[row][col] === 1 || gridState[row][col] === 2) {
+            if (gridState[row][col] === 0 || gridState[row][col] === 1) {
                 count++;
             }
         }
@@ -192,13 +204,13 @@ export function countPoweredCells() {
 
 /**
  * Count protected cells
- * @returns {number} - Number of protected cells (2)
+ * @returns {number} - Number of protected cells (1)
  */
 export function countProtectedCells() {
     let count = 0;
     for (let row = 0; row < GRID_SIZE; row++) {
         for (let col = 0; col < GRID_SIZE; col++) {
-            if (gridState[row][col] === 2) count++;
+            if (gridState[row][col] === 1) count++;
         }
     }
     return count;
@@ -225,6 +237,93 @@ export function getSolution() {
  */
 export function clearSolution() {
     solutionState = [];
+}
+
+/**
+ * Add a manual placement
+ * @param {Object} placement - Placement object with priorityId, shape, row, col, cells, etc.
+ */
+export function addManualPlacement(placement) {
+    // Remove any existing placement for this priority item
+    manualPlacements = manualPlacements.filter(p => p.priorityId !== placement.priorityId);
+    manualPlacements.push(placement);
+}
+
+/**
+ * Remove a manual placement by priority ID
+ * @param {string} priorityId - The priority ID to remove
+ */
+export function removeManualPlacement(priorityId) {
+    manualPlacements = manualPlacements.filter(p => p.priorityId !== priorityId);
+}
+
+/**
+ * Get all manual placements
+ * @returns {Array} - Array of manual placement objects
+ */
+export function getManualPlacements() {
+    return manualPlacements;
+}
+
+/**
+ * Clear all manual placements
+ */
+export function clearManualPlacements() {
+    manualPlacements = [];
+}
+
+/**
+ * Check if a cell is occupied by any manual placement
+ * @param {number} row - Row index
+ * @param {number} col - Column index
+ * @returns {boolean} - Whether the cell is occupied
+ */
+export function isManuallyOccupied(row, col) {
+    for (const placement of manualPlacements) {
+        for (const cell of placement.cells) {
+            if (cell.row === row && cell.col === col) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+/**
+ * Get all cells occupied by manual placements
+ * @returns {Set<string>} - Set of "row,col" keys
+ */
+export function getManuallyOccupiedCells() {
+    const occupied = new Set();
+    for (const placement of manualPlacements) {
+        for (const cell of placement.cells) {
+            occupied.add(`${cell.row},${cell.col}`);
+        }
+    }
+    return occupied;
+}
+
+/**
+ * Set all solutions (for multi-solution support)
+ * @param {Array} solutions - Array of solution objects
+ */
+export function setAllSolutions(solutions) {
+    allSolutions = solutions;
+}
+
+/**
+ * Get all solutions
+ * @returns {Array} - All solutions
+ */
+export function getAllSolutions() {
+    return allSolutions;
+}
+
+/**
+ * Clear all solutions
+ */
+export function clearAllSolutions() {
+    allSolutions = [];
 }
 
 /**

@@ -14,6 +14,47 @@
         </header>
 
         <main>
+            <!-- Build Header -->
+            <div class="build-header">
+                <div class="build-selector">
+                    <label class="build-label">Build:</label>
+                    <div class="build-dropdown" id="build-dropdown">
+                        <button class="build-dropdown-toggle" id="build-dropdown-toggle" type="button" title="Select a build">
+                            <span class="build-dropdown-text">New Build</span>
+                            <span class="build-dropdown-arrow">▼</span>
+                        </button>
+                        <div class="build-dropdown-menu" id="build-dropdown-menu">
+                            <!-- Populated by JS -->
+                        </div>
+                    </div>
+                    <span id="build-save-indicator" class="save-indicator" title="All changes saved">✓</span>
+                </div>
+                <div class="build-actions">
+                    <button id="build-save-btn" class="btn btn-small btn-primary" title="Save build (Ctrl+S)">💾 Save</button>
+                    <button id="build-reload-btn" class="btn btn-small btn-secondary" title="Reload from last save">↩️ Reload</button>
+                    <button id="build-share-btn" class="btn btn-small btn-secondary" title="Copy shareable link">📤 Share</button>
+                    <button id="build-screenshot-btn" class="btn btn-small btn-secondary" title="Export as image">📸</button>
+                    <button id="build-delete-btn" class="btn btn-small btn-danger" title="Delete this build">🗑️</button>
+                </div>
+            </div>
+            
+            <!-- Unnamed Build Prompt (shown when build is not saved) -->
+            <div id="unnamed-build-prompt" class="unnamed-build-prompt hidden">
+                <div class="unnamed-build-warning">
+                    <span class="warning-icon">⚠️</span>
+                    <span>You haven't named the current build.</span>
+                </div>
+                <div class="unnamed-build-form">
+                    <input type="text" id="build-name-input" class="build-name-input" placeholder="Enter build name...">
+                    <span id="build-name-error" class="build-name-error"></span>
+                </div>
+                <div class="unnamed-build-actions">
+                    <button id="unnamed-cancel-btn" class="btn btn-small btn-secondary" title="Dismiss this prompt temporarily">Cancel</button>
+                    <button id="unnamed-delete-btn" class="btn btn-small btn-danger" title="Delete this unsaved build">🗑️ Delete unsaved build</button>
+                    <button id="unnamed-save-btn" class="btn btn-small btn-success" disabled title="Save the build with this name">💾 Save</button>
+                </div>
+            </div>
+
             <div class="grid-section">
                 <h2>Power Grid</h2>
                 <p class="instructions">Green = powered, Blue = protected (prioritized by solver)</p>
@@ -29,17 +70,23 @@
                 
                 <div id="grid-stats" class="grid-stats"></div>
                 <div class="grid-controls">
-                    <button id="clear-grid-btn" class="btn btn-danger">Reset All</button>
-                    <button id="clear-solution-btn" class="btn btn-secondary">Clear Solution</button>
+                    <button id="clear-grid-btn" class="btn btn-danger" title="Reset all settings and clear the grid">🗑️ Reset All</button>
+                    <label class="solution-select-label">
+                        Strategy:
+                        <select id="solution-select" class="solution-select" disabled title="Select a solver strategy">
+                            <option value="">-- Run solver first --</option>
+                        </select>
+                    </label>
+                    <button id="clear-solution-btn" class="btn btn-secondary" title="Clear placed components from grid">🧹 Clear Solutions</button>
                 </div>
             </div>
 
             <div class="priority-section">
-                <h2>Build Order</h2>
-                <p class="instructions">Drag to reorder priority. 🔵 = on protected cell.</p>
+                <h2>My Components</h2>
+                <p class="instructions">Order determines placement priority. Drag to reorder or drop on grid (R to rotate). 🔵 = on protected cell.</p>
                 <div id="priority-list"></div>
                 <div class="solve-section">
-                    <button id="solve-btn" class="btn btn-primary">Solve</button>
+                    <button id="solve-btn" class="btn btn-primary" title="Run solver to place components optimally">🔧 Solve</button>
                     <div id="solve-status" class="solve-status"></div>
                 </div>
             </div>
@@ -49,14 +96,13 @@
                 <fieldset class="component-filters-wrapper">
                     <legend>Filters</legend>
                     <div class="component-filters">
-                        <input type="text" id="filter-name" class="filter-input" placeholder="Name...">
-                        <input type="number" id="filter-blocks" class="filter-input filter-blocks" placeholder="Blocks" min="1" max="25">
-                        <select id="filter-tier" class="filter-input filter-tier">
-                            <option value="">Any Tier</option>
-                            <option value="1">Mk 1</option>
-                            <option value="2">Mk 2</option>
-                            <option value="3">Mk 3</option>
-                        </select>
+                        <input type="text" id="filter-name" class="filter-input" placeholder="Name..." title="Filter by component name">
+                        <input type="number" id="filter-blocks" class="filter-input filter-blocks" placeholder="Blocks" min="1" max="25" title="Filter by number of blocks">
+                        <div class="tier-checkboxes" title="Filter by tier (none = all)">
+                            <label class="tier-checkbox"><input type="checkbox" name="filter-tier" value="1"> Mk 1</label>
+                            <label class="tier-checkbox"><input type="checkbox" name="filter-tier" value="2"> Mk 2</label>
+                            <label class="tier-checkbox"><input type="checkbox" name="filter-tier" value="3"> Mk 3</label>
+                        </div>
                     </div>
                 </fieldset>
                 <div id="components-container"></div>

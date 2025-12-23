@@ -6,10 +6,10 @@
  * - Aux Generator 1 (8x2)
  * - Aux Generator 2 (8x2)
  * 
- * Grid values:
- * - 0 = unpowered (black)
- * - 1 = powered (green)
- * - 2 = protected (light blue - prioritized in solver)
+ * Grid values (matching game encoding):
+ * - 0 = powered/unprotected (green)
+ * - 1 = protected (light blue - prioritized in solver)
+ * - 4 = blocked/unpowered (black)
  */
 
 // Data loaded from JSON files
@@ -181,8 +181,8 @@ export function combineGrid(reactorId, reactorTier = '1', aux1Id = 'none', aux1T
     const aux2Data = getAuxGeneratorTier(aux2Id, aux2Tier) || getAuxGeneratorTier('none', '1');
     
     if (!reactorData) {
-        // Return empty 8x8 grid if no reactor selected
-        return Array(8).fill(null).map(() => Array(8).fill(0));
+        // Return empty 8x8 grid (all blocked) if no reactor selected
+        return Array(8).fill(null).map(() => Array(8).fill(4));
     }
     
     // Combine: reactor (4 rows) + aux1 (2 rows) + aux2 (2 rows)
@@ -240,19 +240,19 @@ export function getGridStats(reactorId, reactorTier = '1', aux1Id = 'none', aux1
 /**
  * Check if a cell value represents a powered cell (green or protected)
  * @param {number} value - Cell value
- * @returns {boolean} - True if powered (1 or 2)
+ * @returns {boolean} - True if powered (0 or 1)
  */
 export function isPoweredCell(value) {
-    return value === 1 || value === 2;
+    return value === 0 || value === 1;
 }
 
 /**
  * Check if a cell value represents a protected cell
  * @param {number} value - Cell value
- * @returns {boolean} - True if protected (2)
+ * @returns {boolean} - True if protected (1)
  */
 export function isProtectedCell(value) {
-    return value === 2;
+    return value === 1;
 }
 
 // Legacy support - keep getTemplates for backwards compatibility

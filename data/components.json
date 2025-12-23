@@ -1,23 +1,536 @@
 {
+  "driftPhaseEngine": {
+    "id": "driftPhaseEngine",
+    "name": "Drift Phase Engine",
+    "category": "ENGINES",
+    "tiers": {
+      "1": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ]
+        ]
+      },
+      "2": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ]
+        ]
+      },
+      "3": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ]
+        ]
+      }
+    }
+  },
+  "microplasmaEngine": {
+    "id": "microplasmaEngine",
+    "name": "Microplasma Engine",
+    "category": "ENGINES",
+    "tiers": {
+      "1": {
+        "shape": [
+          [
+            1
+          ]
+        ]
+      },
+      "2": {
+        "shape": [
+          [
+            1
+          ]
+        ]
+      },
+      "3": {
+        "shape": [
+          [
+            1
+          ]
+        ]
+      }
+    }
+  },
+  "nitroPulseEngine": {
+    "id": "nitroPulseEngine",
+    "name": "Nitro Pulse Engine",
+    "category": "ENGINES",
+    "tiers": {
+      "1": {
+        "shape": [
+          [
+            1,
+            1,
+            1,
+            1
+          ]
+        ]
+      },
+      "2": {
+        "shape": [
+          [
+            1,
+            1,
+            1,
+            1
+          ]
+        ]
+      },
+      "3": {
+        "shape": [
+          [
+            1,
+            1,
+            1,
+            1
+          ]
+        ]
+      }
+    }
+  },
+  "massEjectorEngine": {
+    "id": "massEjectorEngine",
+    "name": "Mass Ejector Engine",
+    "category": "ENGINES",
+    "tiers": {
+      "1": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ]
+        ]
+      },
+      "2": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ]
+        ]
+      },
+      "3": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ]
+        ]
+      }
+    }
+  },
+  "assaultTurrets": {
+    "id": "assaultTurrets",
+    "name": "Assault Turrets",
+    "category": "MULTI-TURRET SYSTEMS",
+    "tiers": {
+      "1": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            0
+          ]
+        ]
+      },
+      "2": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            0
+          ]
+        ]
+      },
+      "3": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            0
+          ]
+        ]
+      }
+    }
+  },
+  "gatlingTurrets": {
+    "id": "gatlingTurrets",
+    "name": "Gatling Turrets",
+    "category": "MULTI-TURRET SYSTEMS",
+    "tiers": {
+      "1": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            0
+          ]
+        ]
+      },
+      "2": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            0
+          ]
+        ]
+      },
+      "3": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            0
+          ]
+        ]
+      }
+    }
+  },
+  "flakLauncherTurrets": {
+    "id": "flakLauncherTurrets",
+    "name": "Flak Launcher Turrets",
+    "category": "MULTI-TURRET SYSTEMS",
+    "tiers": {
+      "1": {
+        "shape": [
+          [
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            0,
+            1
+          ]
+        ]
+      },
+      "2": {
+        "shape": [
+          [
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            0,
+            1
+          ]
+        ]
+      },
+      "3": {
+        "shape": [
+          [
+            1,
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            0,
+            1
+          ]
+        ]
+      }
+    }
+  },
+  "miningLasers": {
+    "id": "miningLasers",
+    "name": "Mining Lasers",
+    "category": "MULTI-TURRET SYSTEMS",
+    "tiers": {
+      "1": {
+        "shape": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ]
+      },
+      "2": {
+        "shape": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ]
+      },
+      "3": {
+        "shape": [
+          [
+            1,
+            1
+          ]
+        ]
+      }
+    }
+  },
+  "fragmentCannon": {
+    "id": "fragmentCannon",
+    "name": "Fragment Cannon",
+    "category": "PILOT CANNONS",
+    "tiers": {
+      "1": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ]
+        ]
+      },
+      "2": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ]
+      },
+      "3": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            0,
+            1,
+            0
+          ]
+        ]
+      }
+    }
+  },
+  "disruptorLaser": {
+    "id": "disruptorLaser",
+    "name": "Disruptor Laser",
+    "category": "PILOT CANNONS",
+    "tiers": {
+      "1": {
+        "shape": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ]
+      },
+      "2": {
+        "shape": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ]
+      },
+      "3": {
+        "shape": [
+          [
+            1,
+            1
+          ]
+        ]
+      }
+    }
+  },
+  "rapidPulseCannon": {
+    "id": "rapidPulseCannon",
+    "name": "Rapid Pulse Cannon",
+    "category": "PILOT CANNONS",
+    "tiers": {
+      "1": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ]
+        ]
+      },
+      "2": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ]
+        ]
+      },
+      "3": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ]
+        ]
+      }
+    }
+  },
+  "boltAccellerator": {
+    "id": "boltAccellerator",
+    "name": "Bolt Accellerator",
+    "category": "PILOT CANNONS",
+    "tiers": {
+      "1": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            1
+          ]
+        ]
+      },
+      "2": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            1
+          ]
+        ]
+      },
+      "3": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            1
+          ]
+        ]
+      }
+    }
+  },
   "sectorScanner": {
     "id": "sectorScanner",
     "name": "Sector Scanner",
     "category": "SENSORS",
     "tiers": {
       "1": {
-        "shape": [[1, 1]]
-      }
-    }
-  },
-  "supplyUplinkUnit": {
-    "id": "supplyUplinkUnit",
-    "name": "Supply Uplink Unit",
-    "category": "SENSORS",
-    "tiers": {
-      "1": {
         "shape": [
-          [0, 1, 1],
-          [1, 1]
+          [
+            1,
+            1
+          ]
         ]
       }
     }
@@ -28,161 +541,279 @@
     "category": "SENSORS",
     "tiers": {
       "1": {
-        "shape": [[1, 1, 1], [1]]
-      }
-    }
-  },
-  "driftPhaseEngine": {
-    "id": "driftPhaseEngine",
-    "name": "Drift Phase Engine",
-    "category": "ENGINES",
-    "tiers": {
-      "3": {
-        "shape": [[1, 1, 1]]
-      }
-    }
-  },
-  "nitroPulseEngine": {
-    "id": "nitroPulseEngine",
-    "name": "Nitro Pulse Engine",
-    "category": "ENGINES",
-    "tiers": {
-      "2": {
-        "shape": [[1, 1, 1, 1]]
-      }
-    }
-  },
-  "microplasmaEngine": {
-    "id": "microplasmaEngine",
-    "name": "Microplasma Engine",
-    "category": "ENGINES",
-    "tiers": {
-      "3": {
-        "shape": [[1]]
-      }
-    }
-  },
-  "massEjectorEngine": {
-    "id": "massEjectorEngine",
-    "name": "Mass Ejector Engine",
-    "category": "ENGINES",
-    "tiers": {
-      "2": {
-        "shape": [[1, 1, 1]]
-      }
-    }
-  },
-  "fragmentCannon": {
-    "id": "fragmentCannon",
-    "name": "Fragment Cannon",
-    "category": "PILOT CANNONS",
-    "tiers": {
-      "3": {
         "shape": [
-          [1, 1, 1],
-          [0, 1, 0]
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            0
+          ]
         ]
       }
     }
   },
-  "rapidPulseCannon": {
-    "id": "rapidPulseCannon",
-    "name": "Rapid Pulse Cannon",
-    "category": "PILOT CANNONS",
+  "supplyUplinkUnit": {
+    "id": "supplyUplinkUnit",
+    "name": "Supply Uplink Unit",
+    "category": "SENSORS",
     "tiers": {
-      "2": {
+      "1": {
         "shape": [
-          [1, 1, 1],
-          [1, 1, 1]
+          [
+            0,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            0
+          ]
         ]
       }
     }
   },
-  "boltAccelerator": {
-    "id": "boltAccelerator",
-    "name": "Bolt Accelerator",
-    "category": "PILOT CANNONS",
+  "lightShieldReGenerator": {
+    "id": "lightShieldReGenerator",
+    "name": "Light shield re-generator",
+    "category": "SHIELD GENERATORS",
     "tiers": {
-      "2": {
+      "1": {
         "shape": [
-          [1, 1, 1],
-          [1, 0, 1]
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            0
+          ]
         ]
-      }
-    }
-  },
-  "disruptorLaser": {
-    "id": "disruptorLaser",
-    "name": "Disruptor Laser",
-    "category": "PILOT CANNONS",
-    "tiers": {
+      },
       "2": {
         "shape": [
-          [1, 1],
-          [1]
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            0
+          ]
         ]
       },
       "3": {
         "shape": [
-          [1, 1]
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            0
+          ]
         ]
       }
     }
   },
-  "assaultTurrets": {
-    "id": "assaultTurrets",
-    "name": "Assault Turrets",
-    "category": "MULTI-TURRET SYSTEMS",
+  "largeShieldReGenerator": {
+    "id": "largeShieldReGenerator",
+    "name": "Large shield re-generator",
+    "category": "SHIELD GENERATORS",
     "tiers": {
-      "3": {
+      "1": {
         "shape": [
-          [1, 1, 1],
-          [1]
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            0
+          ]
         ]
-      }
-    }
-  },
-  "flakLauncherTurrets": {
-    "id": "flakLauncherTurrets",
-    "name": "Flak Launcher Turrets",
-    "category": "MULTI-TURRET SYSTEMS",
-    "tiers": {
+      },
       "2": {
         "shape": [
-          [1, 1, 1, 1],
-          [1, 0, 0, 1]
-        ]
-      }
-    }
-  },
-  "gatlingTurrets": {
-    "id": "gatlingTurrets",
-    "name": "Gatling Turrets",
-    "category": "MULTI-TURRET SYSTEMS",
-    "tiers": {
-      "2": {
-        "shape": [
-          [1, 1, 1],
-          [1, 1, 1],
-          [1, 0, 0]
-        ]
-      }
-    }
-  },
-  "miningLasers": {
-    "id": "miningLasers",
-    "name": "Mining Lasers",
-    "category": "MULTI-TURRET SYSTEMS",
-    "tiers": {
-      "2": {
-        "shape": [
-          [1, 1],
-          [1]
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            0
+          ]
         ]
       },
       "3": {
         "shape": [
-          [1, 1]
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            0
+          ]
+        ]
+      }
+    }
+  },
+  "shieldToArmamentReGenerator": {
+    "id": "shieldToArmamentReGenerator",
+    "name": "Shield-To-Armament re-generator",
+    "category": "SHIELD GENERATORS",
+    "tiers": {
+      "1": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ]
+        ]
+      },
+      "2": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ]
+        ]
+      },
+      "3": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ]
+        ]
+      }
+    }
+  },
+  "missileLauncher": {
+    "id": "missileLauncher",
+    "name": "Missile launcher",
+    "category": "SPECIAL WEAPONS",
+    "tiers": {
+      "1": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ]
+        ]
+      },
+      "2": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ]
+        ]
+      },
+      "3": {
+        "shape": [
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            1,
+            1
+          ]
         ]
       }
     }
@@ -194,30 +825,59 @@
     "tiers": {
       "1": {
         "shape": [
-          [1, 1, 1],
-          [1, 0, 1],
-          [1, 0, 1]
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            1
+          ],
+          [
+            1,
+            0,
+            1
+          ]
         ]
       },
       "2": {
         "shape": [
-          [1, 1, 1],
-          [1, 0, 1],
-          [1, 0, 1]
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            1
+          ],
+          [
+            1,
+            0,
+            1
+          ]
         ]
-      }
-    }
-  },
-  "missileLauncher": {
-    "id": "missileLauncher",
-    "name": "Missile Launcher",
-    "category": "SPECIAL WEAPONS",
-    "tiers": {
-      "2": {
+      },
+      "3": {
         "shape": [
-          [1, 1, 1],
-          [1, 1, 1],
-          [1, 1, 1]
+          [
+            1,
+            1,
+            1
+          ],
+          [
+            1,
+            0,
+            1
+          ],
+          [
+            1,
+            0,
+            1
+          ]
         ]
       }
     }
@@ -227,22 +887,71 @@
     "name": "Burst Shield",
     "category": "SPECIAL WEAPONS",
     "tiers": {
+      "1": {
+        "shape": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ]
+      },
+      "2": {
+        "shape": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
+        ]
+      },
       "3": {
         "shape": [
-          [1, 1],
-          [1, 1]
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            1
+          ]
         ]
       }
     }
   },
   "targetingModule": {
     "id": "targetingModule",
-    "name": "Targeting Module",
+    "name": "Targeting module",
     "category": "SPECIAL WEAPONS",
     "tiers": {
       "1": {
         "shape": [
-          [1, 1]
+          [
+            1,
+            1
+          ]
+        ]
+      },
+      "2": {
+        "shape": [
+          [
+            1,
+            1
+          ]
+        ]
+      },
+      "3": {
+        "shape": [
+          [
+            1,
+            1
+          ]
         ]
       }
     }

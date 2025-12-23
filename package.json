@@ -1,0 +1,24 @@
+{
+  "name": "jump-space-power-grid-optimizer",
+  "packageManager": "yarn@4.9.1",
+  "scripts": {
+    "start": "npx serve -p 3000",
+    "serve": "npx serve -p 3000",
+    
+    "sync:setup": "pip install -r requirements.txt",
+    "sync:setup:win": "pip install -r requirements.txt",
+    "sync:setup:mac": "pip3 install -r requirements.txt",
+    
+    "sync": "python tools/sync_game_data.py",
+    "sync:win": "python tools/sync_game_data.py",
+    "sync:mac": "python3 tools/sync_game_data.py",
+    
+    "sync:compare": "python tools/sync_game_data.py --compare",
+    "sync:compare:win": "python tools/sync_game_data.py --compare",
+    "sync:compare:mac": "python3 tools/sync_game_data.py --compare",
+    
+    "sync:dry-run": "python tools/sync_game_data.py --dry-run",
+    "sync:dry-run:win": "python tools/sync_game_data.py --dry-run",
+    "sync:dry-run:mac": "python3 tools/sync_game_data.py --dry-run"
+  }
+}

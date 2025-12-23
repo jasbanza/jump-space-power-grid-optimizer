@@ -1,0 +1,3 @@
+# Python dependencies for game data sync tool
+UnityPy>=1.10.0
+
