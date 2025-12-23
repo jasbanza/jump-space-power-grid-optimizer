@@ -955,5 +955,24 @@
         ]
       }
     }
+  },
+  "hyperdrive": {
+    "id": "hyperdrive",
+    "name": "Hyperdrive",
+    "category": "SPECIAL",
+    "tiers": {
+      "1": {
+        "shape": [
+          [
+            1,
+            1
+          ],
+          [
+            1,
+            0
+          ]
+        ]
+      }
+    }
   }
 }

@@ -139,6 +139,33 @@ def extract_plug_shapes(env):
         except Exception as e:
             pass
     
+    # Also find the unnamed hyperdrive plug (special case - it's embedded in the prefab)
+    for obj in env.objects:
+        try:
+            if obj.type.name == 'MonoBehaviour':
+                data = obj.read()
+                name = getattr(data, 'm_Name', '')
+                if hasattr(data, 'm_PowerPlugArray') and name == '':
+                    plug_array = data.m_PowerPlugArray
+                    h = plug_array.m_GridSizeHorizontal
+                    v = plug_array.m_GridSizeVertical
+                    rows_obj = plug_array.m_Rows
+                    
+                    grid = []
+                    for row_obj in rows_obj:
+                        row_data = list(row_obj.m_Row)
+                        grid.append(row_data)
+                    
+                    # This is the hyperdrive's custom plug
+                    plug_shapes["EngineerPlug_Hyperdrive"] = {
+                        "width": h,
+                        "height": v,
+                        "grid": grid
+                    }
+                    print(f"  Found hyperdrive plug shape: {h}x{v}")
+        except:
+            pass
+    
     print(f"  Extracted {len(plug_shapes)} plug shapes")
     return plug_shapes
 
@@ -355,6 +382,20 @@ def generate_components_json(components, plug_shapes):
             "name": display_name,
             "category": display_category,
             "tiers": tiers
+        }
+    
+    # Add the Hyperdrive (Jump Drive) - special component with custom plug
+    if "EngineerPlug_Hyperdrive" in plug_shapes:
+        hyperdrive_shape = plug_shapes["EngineerPlug_Hyperdrive"]["grid"]
+        result["hyperdrive"] = {
+            "id": "hyperdrive",
+            "name": "Hyperdrive",
+            "category": "SPECIAL",
+            "tiers": {
+                "1": {
+                    "shape": hyperdrive_shape
+                }
+            }
         }
     
     return result
