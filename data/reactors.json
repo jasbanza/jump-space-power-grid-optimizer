@@ -5,9 +5,9 @@
     "category": "REACTORS",
     "tiers": {
       "1": {
-        "powerGeneration": 22,
+        "powerGeneration": 12,
         "protectedPower": 0,
-        "unprotectedPower": 22,
+        "unprotectedPower": 12,
         "grid": [
           [ 0, 4, 4, 4, 4, 4, 4, 0],
           [ 0, 4, 4, 4, 4, 4, 4, 0],
@@ -16,9 +16,9 @@
         ]
       },
       "2": {
-        "powerGeneration": 22,
-        "protectedPower": 4,
-        "unprotectedPower": 18,
+        "powerGeneration": 14,
+        "protectedPower": 0,
+        "unprotectedPower": 14,
         "grid": [
           [ 0, 4, 4, 4, 4, 4, 4, 0],
           [ 0, 0, 4, 4, 4, 4, 0, 0],
@@ -27,9 +27,9 @@
         ]
       },
       "3": {
-        "powerGeneration": 22,
-        "protectedPower": 8,
-        "unprotectedPower": 14,
+        "powerGeneration": 18,
+        "protectedPower": 0,
+        "unprotectedPower": 18,
         "grid": [
           [ 0, 4, 4, 4, 4, 4, 4, 0],
           [ 0, 0, 4, 4, 4, 4, 0, 0],
@@ -45,9 +45,9 @@
     "category": "REACTORS",
     "tiers": {
       "1": {
-        "powerGeneration": 16,
+        "powerGeneration": 14,
         "protectedPower": 8,
-        "unprotectedPower": 8,
+        "unprotectedPower": 6,
         "grid": [
           [ 4, 4, 4, 0, 0, 4, 4, 4],
           [ 4, 4, 0, 0, 0, 0, 4, 4],
@@ -56,9 +56,9 @@
         ]
       },
       "2": {
-        "powerGeneration": 16,
-        "protectedPower": 12,
-        "unprotectedPower": 4,
+        "powerGeneration": 18,
+        "protectedPower": 10,
+        "unprotectedPower": 8,
         "grid": [
           [ 4, 4, 4, 0, 0, 4, 4, 4],
           [ 4, 4, 0, 1, 1, 0, 4, 4],
@@ -67,9 +67,9 @@
         ]
       },
       "3": {
-        "powerGeneration": 16,
+        "powerGeneration": 18,
         "protectedPower": 16,
-        "unprotectedPower": 0,
+        "unprotectedPower": 2,
         "grid": [
           [ 4, 4, 4, 1, 1, 4, 4, 4],
           [ 4, 4, 0, 1, 1, 0, 4, 4],
@@ -85,9 +85,9 @@
     "category": "REACTORS",
     "tiers": {
       "1": {
-        "powerGeneration": 24,
-        "protectedPower": 4,
-        "unprotectedPower": 20,
+        "powerGeneration": 14,
+        "protectedPower": 0,
+        "unprotectedPower": 14,
         "grid": [
           [ 0, 0, 0, 4, 4, 0, 0, 0],
           [ 4, 0, 0, 4, 4, 0, 0, 4],
@@ -96,8 +96,8 @@
         ]
       },
       "2": {
-        "powerGeneration": 24,
-        "protectedPower": 8,
+        "powerGeneration": 16,
+        "protectedPower": 0,
         "unprotectedPower": 16,
         "grid": [
           [ 0, 0, 0, 0, 0, 0, 0, 0],
@@ -107,9 +107,9 @@
         ]
       },
       "3": {
-        "powerGeneration": 24,
-        "protectedPower": 14,
-        "unprotectedPower": 10,
+        "powerGeneration": 20,
+        "protectedPower": 0,
+        "unprotectedPower": 20,
         "grid": [
           [ 0, 0, 0, 0, 0, 0, 0, 0],
           [ 0, 0, 0, 4, 4, 0, 0, 0],
@@ -125,9 +125,9 @@
     "category": "REACTORS",
     "tiers": {
       "1": {
-        "powerGeneration": 20,
+        "powerGeneration": 16,
         "protectedPower": 6,
-        "unprotectedPower": 14,
+        "unprotectedPower": 10,
         "grid": [
           [ 4, 0, 4, 4, 4, 4, 0, 4],
           [ 4, 0, 0, 4, 4, 0, 0, 4],
@@ -136,8 +136,8 @@
         ]
       },
       "2": {
-        "powerGeneration": 20,
-        "protectedPower": 10,
+        "powerGeneration": 18,
+        "protectedPower": 8,
         "unprotectedPower": 10,
         "grid": [
           [ 4, 0, 4, 4, 4, 4, 0, 4],
@@ -147,9 +147,9 @@
         ]
       },
       "3": {
-        "powerGeneration": 20,
-        "protectedPower": 14,
-        "unprotectedPower": 6,
+        "powerGeneration": 22,
+        "protectedPower": 8,
+        "unprotectedPower": 14,
         "grid": [
           [ 4, 0, 4, 4, 4, 4, 0, 4],
           [ 4, 0, 0, 0, 0, 0, 0, 4],
